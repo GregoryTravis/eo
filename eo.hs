@@ -1,5 +1,3 @@
-{-
--}
 import Control.Concurrent
 import Control.Monad
 import System.IO
@@ -15,15 +13,12 @@ geee a = do
   threadDelay (500*1000) -- value in microseconds
   geee $ a + 1
 
+guh = do
+  forever $ do
+    line <- getLine                                     -- line :: String
+    putStrLn line
+
 main = do
   hSetBuffering stdout NoBuffering
-  geee 40
-
-{-
-import Control.Concurrent
-
-main = 
-  forever $ do
-    forkIO $ loopCycle
-    threadDelay $ 100 * 10^3
--}
+  -- geee 40
+  guh
