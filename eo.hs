@@ -1,21 +1,18 @@
 import Control.Concurrent
 import Control.Monad
+import Data.List
 import System.IO
 
-bree = forever $ do
-  putStr "dev \"US-122 MKII MIDI\" on 60 127"
-  putStrLn ""
-  threadDelay (100*1000) -- value in microseconds
+sh x = do hPutStrLn stderr x
 
-geee a = do
-  putStr $ "dev \"US-122 MKII MIDI\" on " ++ (show a) ++ " 127"
-  putStrLn ""
-  threadDelay (500*1000) -- value in microseconds
-  geee $ a + 1
+logm x = if isInfixOf "note" x
+           then sh x
+           else return ()
 
 guh = do
   forever $ do
     line <- getLine                                     -- line :: String
+    logm line
     putStrLn line
 
 main = do
