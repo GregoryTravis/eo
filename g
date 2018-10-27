@@ -1,5 +1,5 @@
-rm -f eo
-ghc -o eo eo.hs
+rm -f eo eo.hi
+ghc -fprof-auto -fprof-cafs -prof -o eo eo.hs
 echo ok
-receivemidi dev "US-122 MKII MIDI" | ./eo | sendmidi dev "US-122 MKII MIDI" --
+receivemidi dev "US-122 MKII MIDI" | ./eo +RTS -xc | sendmidi dev "US-122 MKII MIDI" --
 #./eo
