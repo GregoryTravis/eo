@@ -74,31 +74,35 @@ updateNoteSet noteSet (NoteOff pitch vel) =
 
 briefShow (NoteOn (Pitch pitch) vel) = pitchToLetter pitch
 briefShow (NoteOff (Pitch pitch) vel) = pitchToLetter pitch
--- showNoteSet [Events]
+showNoteSet :: [Event] -> [String]
+showNoteSet events = map briefShow events
+
+processEventLine :: String -> Maybe Event
+processEventLine line =
+  if isNote line
+    then Just $ parseEvent line
+    else Nothing
+
+readReadyEvents :: IO [Event]
+readReadyEvents =
+  let loop events = do
+      ready <- hReady stdin
+      sh $ "ready" ++ (show ready)
+      if ready
+        then do
+          line <- getLine
+          sh $ "yah " ++ line
+          if isNote line then case (processEventLine line) of
+            Just event -> loop $ events ++ [event]
+            Nothing -> loop events
+            else loop events
+        else return events
+   in loop []
 
 guh = do
   forever $ do
-    let
-      loop = do
-        ready <- hReady stdin
-        sh $ "ready" ++ (show ready)
-        if ready
-          then do
-            line <- getLine
-            sh $ "yah " ++ line
-            if isNote line
-              then do
-                logm line
-                putStrLn line
-                -- sh $ show $ words line
-                sh $ show $ parseEvent line
-                sh $ show $ renderEvent (parseEvent line)
-              else do
-                return ()
-            loop
-          else do
-            return ()
-      in loop
+    events <- readReadyEvents
+    sh $ show $ showNoteSet events
     threadDelay 1000000
 
 main = do
