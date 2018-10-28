@@ -1,4 +1,5 @@
 import Control.Concurrent
+import Control.Concurrent
 import Control.Monad
 import Data.List
 import GHC.Stack
@@ -31,18 +32,31 @@ parseNote line =
 
 guh = do
   forever $ do
-    line <- getLine
-    if isNote line
-      then do
-        logm line
-        putStrLn line
-        sh $ show $ words line
-        sh $ show $ parseNote line
-        -- stack <- currentCallStack
-        -- sh $ show stack
-        -- sh (show (words line))
-        -- putStrLn "note-on 60 127"
-      else return ()
+    let
+      loop = do
+        ready <- hReady stdin
+        sh $ "ready" ++ (show ready)
+        if ready
+          then do
+            line <- getLine
+            sh $ "yah " ++ line
+            if isNote line
+              then do
+                logm line
+                putStrLn line
+                sh $ show $ words line
+                sh $ show $ parseNote line
+                -- stack <- currentCallStack
+                -- sh $ show stack
+                -- sh (show (words line))
+                -- putStrLn "note-on 60 127"
+              else do
+                return ()
+            loop
+          else do
+            return ()
+      in loop
+    threadDelay 1000000
 
 main = do
   sh "start"
