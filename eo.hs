@@ -1,7 +1,9 @@
 import Control.Concurrent
 import Control.Concurrent
 import Control.Monad
+import Data.Char (ord)
 import Data.List
+import Data.List.Split
 import GHC.Stack
 import System.IO
 
@@ -20,15 +22,32 @@ logm x = if isNote x
 modes = [[0, 4, 7], [0, 3, 7, 10]]
 --0isCtrl x = x == 48 || x == 49
 
-data Note = Note Int Int deriving Show
+theOctave = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
-parseNote line =
+data Pitch = Pitch Int deriving Show
+data Event = NoteOn Pitch Int | NoteOff Pitch Int
+  deriving Show
+
+middleCNum = 4 -- Is this right?
+
+atoi s = read s :: Int
+
+-- parsePitch :: [Char] -> Int
+parsePitch [letter, octave] = ((atoi [octave] + 1) * 12) + ((ord letter) - (ord 'A') - 2)
+parsePitch [letter, sharp, octave] = parsePitch [letter, octave] + 1
+
+parseEvent line =
   case (words line) of
     [channel, one, eventType, pitchS, velocityS] ->
       assert (channel == "channel")
         assert (one == "1")
           assert (eventType == "note-on" || eventType == "note-off")
-            Note 3 4
+            (if eventType == "note-on" then NoteOn else NoteOff) (Pitch (parsePitch pitchS)) (read velocityS :: Int)
+
+pitchToLetter num = case divMod num 12 of
+  (d, m) -> (theOctave !! m) ++ (show (d - 1))
+renderEvent (NoteOn (Pitch pitch) vel) = intercalate " " ["channel", "1", "note-on", pitchToLetter pitch, show vel]
+renderEvent (NoteOff (Pitch pitch) vel) = intercalate " " ["channel", "1", "note-off", pitchToLetter pitch, show vel]
 
 guh = do
   forever $ do
@@ -44,12 +63,9 @@ guh = do
               then do
                 logm line
                 putStrLn line
-                sh $ show $ words line
-                sh $ show $ parseNote line
-                -- stack <- currentCallStack
-                -- sh $ show stack
-                -- sh (show (words line))
-                -- putStrLn "note-on 60 127"
+                -- sh $ show $ words line
+                sh $ show $ parseEvent line
+                sh $ show $ renderEvent (parseEvent line)
               else do
                 return ()
             loop
