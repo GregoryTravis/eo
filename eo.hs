@@ -113,22 +113,23 @@ splitBy events pred =
       foo results [] = results
    in foo ([], []) events
 
-processEvents :: Set.Set Event -> [Event] -> Set.Set Event
+processEvents :: (Set.Set Event, Set.Set Event) -> [Event] -> (Set.Set Event, Set.Set Event)
 -- todo indent and remove parens
-processEvents noteSet events = -- updateNoteSetMulti noteSet events
+processEvents (chord, noteSet) events = -- updateNoteSetMulti noteSet events
   let (control, performance) = splitBy events (\e -> case e of (NoteOn (Pitch pitch) vel) -> (pitch >= 48 && pitch < 60))
-   in updateNoteSetMulti noteSet performance
+   in (updateNoteSetMulti chord control, updateNoteSetMulti noteSet performance)
 
 guh =
-  let loop noteSet = do
+  let loop chord noteSet = do
         events <- readReadyEvents
         sh $ show events
         sh $ show $ showNoteSet events
         threadDelay 1000000
-        let updatedNoteSet = processEvents noteSet events
-         in do sh $ show $ showNoteSet $ Set.toList updatedNoteSet
-               loop updatedNoteSet
-   in loop Set.empty
+        let (updatedChord, updatedNoteSet) = processEvents (chord, noteSet) events
+         in do sh $ "perf " ++ (show $ showNoteSet $ Set.toList updatedNoteSet)
+               sh $ "ctrl " ++ (show $ showNoteSet $ Set.toList updatedChord)
+               loop updatedChord updatedNoteSet
+   in loop Set.empty Set.empty
 
 main = do
   sh "start"
