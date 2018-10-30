@@ -71,6 +71,8 @@ updateNoteSet noteSet (NoteOn pitch vel) =
 updateNoteSet noteSet (NoteOff pitch vel) =
   assert (Set.member (NoteOn pitch vel) noteSet)
     Set.delete (NoteOn pitch vel) noteSet
+updateNoteSetMulti noteSet (e:es) = updateNoteSetMulti (updateNoteSet noteSet e) es
+updateNoteSetMulti noteSet [] = noteSet
 
 briefShow (NoteOn (Pitch pitch) vel) = pitchToLetter pitch
 briefShow (NoteOff (Pitch pitch) vel) = pitchToLetter pitch
