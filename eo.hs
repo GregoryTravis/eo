@@ -69,8 +69,8 @@ updateNoteSet :: Set.Set Event -> Event -> Set.Set Event
 updateNoteSet noteSet (NoteOn pitch vel) =
   Set.insert (NoteOn pitch vel) noteSet
 updateNoteSet noteSet (NoteOff pitch vel) =
-  assert (Set.member (NoteOn pitch vel) noteSet)
-    Set.delete (NoteOn pitch vel) noteSet
+  -- assert (Set.member (NoteOn pitch vel) noteSet)
+  Set.delete (NoteOn pitch vel) noteSet
 updateNoteSetMulti noteSet (e:es) = updateNoteSetMulti (updateNoteSet noteSet e) es
 updateNoteSetMulti noteSet [] = noteSet
 
@@ -101,11 +101,15 @@ readReadyEvents =
         else return events
    in loop []
 
-guh = do
-  forever $ do
-    events <- readReadyEvents
-    sh $ show $ showNoteSet events
-    threadDelay 1000000
+guh =
+  let loop noteSet = do
+        events <- readReadyEvents
+        sh $ show $ showNoteSet events
+        threadDelay 1000000
+        let updatedNoteSet = (updateNoteSetMulti noteSet events)
+         in do sh $ show $ showNoteSet $ Set.toList updatedNoteSet
+               loop updatedNoteSet
+   in loop Set.empty
 
 main = do
   sh "start"
