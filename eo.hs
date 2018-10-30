@@ -4,6 +4,8 @@ import Control.Monad
 import Data.Char (ord)
 import Data.List
 import Data.List.Split
+import qualified Data.Map.Strict as Map
+import Data.Maybe
 import qualified Data.Set as Set
 import GHC.Stack
 import System.IO
@@ -48,8 +50,10 @@ middleCNum = 4 -- Is this right?
 
 atoi s = read s :: Int
 
+noteOffsets = Map.fromList [('A', 9), ('B', 11), ('C', 0), ('D', 2), ('E', 4), ('F', 5), ('G', 7)]
+
 -- parsePitch :: [Char] -> Int
-parsePitch [letter, octave] = ((atoi [octave] + 1) * 12) + ((ord letter) - (ord 'A') - 2)
+parsePitch [letter, octave] = ((atoi [octave] + 1) * 12) + fromJust (Map.lookup letter noteOffsets) -- ((ord letter) - (ord 'A') - 2)
 parsePitch [letter, sharp, octave] = parsePitch [letter, octave] + 1
 
 parseEvent line =
@@ -101,12 +105,27 @@ readReadyEvents =
         else return events
    in loop []
 
+-- todo: use where; remove spaces around :, remove parens
+splitBy events pred =
+  let foo (yes, no) (e : es) = if (pred e)
+                                 then (foo (e : yes, no) es)
+                                 else (foo (yes, e : no) es)
+      foo results [] = results
+   in foo ([], []) events
+
+processEvents :: Set.Set Event -> [Event] -> Set.Set Event
+-- todo indent and remove parens
+processEvents noteSet events = -- updateNoteSetMulti noteSet events
+  let (control, performance) = splitBy events (\e -> case e of (NoteOn (Pitch pitch) vel) -> (pitch >= 48 && pitch < 60))
+   in updateNoteSetMulti noteSet performance
+
 guh =
   let loop noteSet = do
         events <- readReadyEvents
+        sh $ show events
         sh $ show $ showNoteSet events
         threadDelay 1000000
-        let updatedNoteSet = (updateNoteSetMulti noteSet events)
+        let updatedNoteSet = processEvents noteSet events
          in do sh $ show $ showNoteSet $ Set.toList updatedNoteSet
                loop updatedNoteSet
    in loop Set.empty
