@@ -28,23 +28,23 @@ modes = [[0, 4, 7], [0, 3, 7, 10]]
 theOctave = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 data Pitch = Pitch Int deriving Show
-data Event = NoteOn Pitch Int | NoteOff Pitch Int
+data NoteOnOff = NoteOn | NoteOff
+instance Show NoteOnOff where
+  show NoteOn = "+"
+  show NoteOff = "-"
+data Event = Note NoteOnOff Pitch Int
   deriving Show
-eventPitch (NoteOn pitch vel) = pitch
-eventPitch (NoteOff pitch vel) = pitch
-eventVel (NoteOn pitch vel) = vel
-eventVel (NoteOff pitch vel) = vel
 
 instance Eq Pitch where
   (Pitch a) == (Pitch b) = a == b
 instance Eq Event where
-  e0 == e1 = (eventPitch e0) == (eventPitch e1) && (eventVel e0) == (eventVel e1)
+  (Note _ pitchA _) == (Note _ pitchB _) = pitchA == pitchB
 instance Ord Pitch where
   compare (Pitch a) (Pitch b) = compare a b
 instance Ord Event where
-  compare e0 e1 = if (eventPitch e0) == (eventPitch e1)
-    then compare (eventVel e0) (eventVel e1)
-    else compare (eventPitch e0) (eventPitch e1)
+  compare (Note _ pitchA velA) (Note _ pitchB velB) = if pitchA == pitchB
+    then compare velA velB
+    else compare pitchA pitchB
 
 middleCNum = 4 -- Is this right?
 
@@ -62,24 +62,22 @@ parseEvent line =
       assert (channel == "channel")
         assert (one == "1")
           assert (eventType == "note-on" || eventType == "note-off")
-            (if eventType == "note-on" then NoteOn else NoteOff) (Pitch (parsePitch pitchS)) (read velocityS :: Int)
+            Note (if eventType == "note-on" then NoteOn else NoteOff) (Pitch (parsePitch pitchS)) (read velocityS :: Int)
 
 pitchToLetter num = case divMod num 12 of
   (d, m) -> (theOctave !! m) ++ (show (d - 1))
-renderEvent (NoteOn (Pitch pitch) vel) = intercalate " " ["channel", "1", "note-on", pitchToLetter pitch, show vel]
-renderEvent (NoteOff (Pitch pitch) vel) = intercalate " " ["channel", "1", "note-off", pitchToLetter pitch, show vel]
+renderEvent (Note onOff (Pitch pitch) vel) = intercalate " " ["channel", "1", (case onOff of NoteOn -> "note-on" ; NoteOff -> "note-off"), pitchToLetter pitch, show vel]
 
 updateNoteSet :: Set.Set Event -> Event -> Set.Set Event
-updateNoteSet noteSet (NoteOn pitch vel) =
-  Set.insert (NoteOn pitch vel) noteSet
-updateNoteSet noteSet (NoteOff pitch vel) =
+updateNoteSet noteSet (Note NoteOn pitch vel) =
+  Set.insert (Note NoteOn pitch vel) noteSet
+updateNoteSet noteSet (Note NoteOff pitch vel) =
   -- assert (Set.member (NoteOn pitch vel) noteSet)
-  Set.delete (NoteOn pitch vel) noteSet
+  Set.delete (Note NoteOn pitch vel) noteSet
 updateNoteSetMulti noteSet (e:es) = updateNoteSetMulti (updateNoteSet noteSet e) es
 updateNoteSetMulti noteSet [] = noteSet
 
-briefShow (NoteOn (Pitch pitch) vel) = pitchToLetter pitch
-briefShow (NoteOff (Pitch pitch) vel) = pitchToLetter pitch
+briefShow (Note onOff (Pitch pitch) vel) = pitchToLetter pitch
 showNoteSet :: [Event] -> [String]
 showNoteSet events = map briefShow events
 
@@ -116,7 +114,7 @@ splitBy events pred =
 processEvents :: (Set.Set Event, Set.Set Event) -> [Event] -> (Set.Set Event, Set.Set Event)
 -- todo indent and remove parens
 processEvents (chord, noteSet) events = -- updateNoteSetMulti noteSet events
-  let (control, performance) = splitBy events (\e -> case e of (NoteOn (Pitch pitch) vel) -> (pitch >= 48 && pitch < 60))
+  let (control, performance) = splitBy events (\e -> case e of (Note NoteOn (Pitch pitch) vel) -> (pitch >= 48 && pitch < 60))
    in (updateNoteSetMulti chord control, updateNoteSetMulti noteSet performance)
 
 guh =
