@@ -27,13 +27,16 @@ modes = [[0, 4, 7], [0, 3, 7, 10]]
 
 theOctave = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
-data Pitch = Pitch Int deriving Show
+data Pitch = Pitch Int
+instance Show Pitch where
+  show (Pitch p) = pitchToLetter p
 data NoteOnOff = NoteOn | NoteOff
 instance Show NoteOnOff where
   show NoteOn = "+"
   show NoteOff = "-"
 data Event = Note NoteOnOff Pitch Int
-  deriving Show
+instance Show Event where
+  show (Note onOff pitch int) = (show onOff) ++ (show pitch)
 
 instance Eq Pitch where
   (Pitch a) == (Pitch b) = a == b
@@ -65,7 +68,7 @@ parseEvent line =
 
 pitchToLetter num = case divMod num 12 of
   (d, m) -> (theOctave !! m) ++ (show (d - 1))
-renderEvent (Note onOff (Pitch pitch) vel) = intercalate " " ["channel", "1", (case onOff of NoteOn -> "note-on" ; NoteOff -> "note-off"), pitchToLetter pitch, show vel]
+sendmidiRenderEvent (Note onOff (Pitch pitch) vel) = intercalate " " ["channel", "1", (case onOff of NoteOn -> "note-on" ; NoteOff -> "note-off"), pitchToLetter pitch, show vel]
 
 updateNoteSet :: Set.Set Event -> Event -> Set.Set Event
 updateNoteSet noteSet (Note NoteOn pitch vel) =
@@ -76,9 +79,8 @@ updateNoteSet noteSet (Note NoteOff pitch vel) =
 updateNoteSetMulti noteSet (e:es) = updateNoteSetMulti (updateNoteSet noteSet e) es
 updateNoteSetMulti noteSet [] = noteSet
 
-briefShow (Note onOff (Pitch pitch) vel) = pitchToLetter pitch
 showNoteSet :: [Event] -> [String]
-showNoteSet events = map briefShow events
+showNoteSet events = map show events
 
 processEventLine :: String -> Maybe Event
 processEventLine line =
