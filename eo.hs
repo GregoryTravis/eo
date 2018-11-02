@@ -42,9 +42,8 @@ instance Eq Event where
 instance Ord Pitch where
   compare (Pitch a) (Pitch b) = compare a b
 instance Ord Event where
-  compare (Note _ pitchA velA) (Note _ pitchB velB) = if pitchA == pitchB
-    then compare velA velB
-    else compare pitchA pitchB
+  compare (Note _ pitchA velA) (Note _ pitchB velB) =
+    compare (pitchA, velA) (pitchB, velB)
 
 middleCNum = 4 -- Is this right?
 
