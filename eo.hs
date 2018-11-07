@@ -1,13 +1,14 @@
 import Control.Concurrent
-import Control.Concurrent
 import Control.Monad
 import Data.Char (ord)
+import Data.Heap
 import Data.List
 import Data.List.Split
 import qualified Data.Map.Strict as Map
 import Data.Maybe
 import qualified Data.Set as Set
 import GHC.Stack
+import Data.Ratio
 import System.IO
 
 assert b v = if b
@@ -37,6 +38,8 @@ instance Show NoteOnOff where
 data Event = Note NoteOnOff Pitch Int
 instance Show Event where
   show (Note onOff pitch int) = (show onOff) ++ (show pitch)
+
+data NoteAt = NoteAt Pitch 
 
 instance Eq Pitch where
   (Pitch a) == (Pitch b) = a == b
@@ -130,8 +133,64 @@ guh =
                loop updatedChord updatedNoteSet
    in loop Set.empty Set.empty
 
+timeSignatureDenom = 4
+bpm = 120
+
+abstractTimeToSeconds at = (60.0 / bpm) * at
+-- [(time, absnote)]
+layers = [
+  [(0, 0), (1, 1), (2, 2), (3, 3)],
+  [(0.5, 2), (1.5, 3), (2.5, 0), (3.5, 1)] ]
+
+ooo :: MinPrioHeap Double(Double, Double)
+ooo = fromList [(1.3, (1.3, 3))]
+
+combineLayers :: [[(Double, Double)]] -> MinPrioHeap Double (Int, Double, Double)
+combineLayers layers = fromList $ concat $ map (\ix -> case ix of (layer, es) -> map (\e -> case e of (t, ni) -> (t, (layer, t, ni))) es) $ zip [0..] layers
+
+playLayers = do
+  let combined = combineLayers layers
+   in do
+     sh $ show combined
+     --sh $ show $ view combined
+     let loop events = 
+           case (view events) of
+             Just ((t, (layer, t', ni)), rest) -> do
+               -- Type error without this line
+               sh $ show $ (combined == events)
+               --sh $ show $ combined
+               --sh $ show $ events
+               sh $ show $ t
+               sh $ show $ rest
+               --threadDelay (t - lastEventTime) * 1000000
+               loop rest
+             Nothing -> do
+               sh "done"
+               return ()
+      in loop combined
+       --Just a -> sh $ show $ a
+     --return ()
+
+{-
+   in let loop lastEventTime combined = case (view combined) of
+            Just (e, newCombined) ->
+              case e of (t, ni) -> do return ()
+                -- sh $ show e
+                -- threadDelay (t - lastEventTime) * 1000000
+                -- loop t newCombined
+            Nothing -> return ()
+       in loop 0 combined
+-}
+
+{-
+data NoteAndLayer = NoteAndLayer Pitch Int
+instance Ord NoteAndLayer where
+  compare (NoteAndLayer noteA _) (NoteAndLayer noteB _) = copmare noteA noteB
+data Sequence = HeapT Pitch NoteAndLayer
+-}
+
 main = do
   sh "start"
   hSetBuffering stdout NoBuffering
   -- geee 40
-  guh
+  playLayers
