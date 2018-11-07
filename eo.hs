@@ -107,32 +107,6 @@ readReadyEvents =
         else return events
    in loop []
 
--- todo: use where; remove spaces around :, remove parens
-splitBy events pred =
-  let foo (yes, no) (e : es) = if (pred e)
-                                 then (foo (e : yes, no) es)
-                                 else (foo (yes, e : no) es)
-      foo results [] = results
-   in foo ([], []) events
-
-processEvents :: (Set.Set Event, Set.Set Event) -> [Event] -> (Set.Set Event, Set.Set Event)
--- todo indent and remove parens
-processEvents (chord, noteSet) events = -- updateNoteSetMulti noteSet events
-  let (control, performance) = splitBy events (\e -> case e of (Note NoteOn (Pitch pitch) vel) -> (pitch >= 48 && pitch < 60))
-   in (updateNoteSetMulti chord control, updateNoteSetMulti noteSet performance)
-
-guh =
-  let loop chord noteSet = do
-        events <- readReadyEvents
-        sh $ show events
-        sh $ show $ showNoteSet events
-        threadDelay 1000000
-        let (updatedChord, updatedNoteSet) = processEvents (chord, noteSet) events
-         in do sh $ "perf " ++ (show $ showNoteSet $ Set.toList updatedNoteSet)
-               sh $ "ctrl " ++ (show $ showNoteSet $ Set.toList updatedChord)
-               loop updatedChord updatedNoteSet
-   in loop Set.empty Set.empty
-
 timeSignatureDenom = 4
 bpm = 120
 
@@ -159,32 +133,12 @@ playLayers = do
                if t > currentTime
                  then threadDelay $ round $ (t - currentTime) * 1000000
                  else return ()
-               --threadDelay (t - lastEventTime) * 1000000
                loop t rest
              Nothing -> do
                return ()
       in loop 0.0 combined
 
-{-
-   in let loop lastEventTime combined = case (view combined) of
-            Just (e, newCombined) ->
-              case e of (t, ni) -> do return ()
-                -- sh $ show e
-                -- threadDelay (t - lastEventTime) * 1000000
-                -- loop t newCombined
-            Nothing -> return ()
-       in loop 0 combined
--}
-
-{-
-data NoteAndLayer = NoteAndLayer Pitch Int
-instance Ord NoteAndLayer where
-  compare (NoteAndLayer noteA _) (NoteAndLayer noteB _) = copmare noteA noteB
-data Sequence = HeapT Pitch NoteAndLayer
--}
-
 main = do
   sh "start"
   hSetBuffering stdout NoBuffering
-  -- geee 40
   playLayers
