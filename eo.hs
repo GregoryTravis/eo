@@ -126,7 +126,8 @@ playLayers = do
   let combined = combineLayers layers
    in do
      let loop :: Double -> MinPrioHeap Double (Int, Double, Double) -> IO ()
-         loop currentTime events = 
+         loop currentTime events =  do
+           readyEvents <- readReadyEvents
            case (view events) of
              Just ((t, event), rest) -> do
                sh $ show $ event
