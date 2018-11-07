@@ -151,29 +151,19 @@ combineLayers layers = fromList $ concat $ map (\ix -> case ix of (layer, es) ->
 playLayers = do
   let combined = combineLayers layers
    in do
-     sh $ show combined
-     --sh $ show $ view combined
      let loop :: Double -> MinPrioHeap Double (Int, Double, Double) -> IO ()
          loop currentTime events = 
            case (view events) of
-             Just ((t, (layer, t', ni)), rest) -> do
-               -- Type error without this line
-               sh $ show $ (combined == events)
-               --sh $ show $ combined
-               --sh $ show $ events
-               sh $ show $ t
-               sh $ show $ rest
+             Just ((t, event), rest) -> do
+               sh $ show $ event
                if t > currentTime
                  then threadDelay $ round $ (t - currentTime) * 1000000
                  else return ()
                --threadDelay (t - lastEventTime) * 1000000
                loop t rest
              Nothing -> do
-               sh "done"
                return ()
       in loop 0.0 combined
-       --Just a -> sh $ show $ a
-     --return ()
 
 {-
    in let loop lastEventTime combined = case (view combined) of
