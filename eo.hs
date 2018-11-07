@@ -140,7 +140,7 @@ abstractTimeToSeconds at = (60.0 / bpm) * at
 -- [(time, absnote)]
 layers = [
   [(0, 0), (1, 1), (2, 2), (3, 3)],
-  [(0.5, 2), (1.5, 3), (2.5, 0), (3.5, 1)] ]
+  [(0.5, 2), (1.5, 3), (2.5, 0), (2.75, 0), (3.5, 1)] ]
 
 ooo :: MinPrioHeap Double(Double, Double)
 ooo = fromList [(1.3, (1.3, 3))]
@@ -153,7 +153,8 @@ playLayers = do
    in do
      sh $ show combined
      --sh $ show $ view combined
-     let loop events = 
+     let loop :: Double -> MinPrioHeap Double (Int, Double, Double) -> IO ()
+         loop currentTime events = 
            case (view events) of
              Just ((t, (layer, t', ni)), rest) -> do
                -- Type error without this line
@@ -162,12 +163,15 @@ playLayers = do
                --sh $ show $ events
                sh $ show $ t
                sh $ show $ rest
+               if t > currentTime
+                 then threadDelay $ round $ (t - currentTime) * 1000000
+                 else return ()
                --threadDelay (t - lastEventTime) * 1000000
-               loop rest
+               loop t rest
              Nothing -> do
                sh "done"
                return ()
-      in loop combined
+      in loop 0.0 combined
        --Just a -> sh $ show $ a
      --return ()
 
