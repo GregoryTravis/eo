@@ -95,7 +95,7 @@ readReadyEvents :: IO [Event]
 readReadyEvents =
   let loop events = do
       ready <- hReady stdin
-      sh $ "ready" ++ (show ready)
+      -- sh $ "ready" ++ (show ready)
       if ready
         then do
           line <- getLine
