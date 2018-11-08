@@ -31,6 +31,7 @@ theOctave = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 data Pitch = Pitch Int
 instance Show Pitch where
   show (Pitch p) = pitchToLetter p
+  --show (Pitch p) = show p
 data NoteOnOff = NoteOn | NoteOff
 instance Show NoteOnOff where
   show NoteOn = "+"
@@ -56,6 +57,8 @@ middleCNum = 4 -- Is this right?
 atoi s = read s :: Int
 
 noteOffsets = Map.fromList [('A', 9), ('B', 11), ('C', 0), ('D', 2), ('E', 4), ('F', 5), ('G', 7)]
+offsetNotes = Map.fromList $ map (\pr -> case pr of (c, o) -> (o, c)) (Map.toList noteOffsets)
+whiteKeys = [0, 2, 4, 5, 7, 9, 11]
 
 -- parsePitch :: [Char] -> Int
 parsePitch [letter, octave] = ((atoi [octave] + 1) * 12) + fromJust (Map.lookup letter noteOffsets) -- ((ord letter) - (ord 'A') - 2)
@@ -128,6 +131,8 @@ data Inst = Inst NoteSet deriving Show
 processNoteSet (Inst noteSet) events = Inst (updateNoteSetMulti noteSet events)
 emptyInst = Inst Set.empty
 
+isLayerOn (Inst noteSet) (layer, t, ni) = Set.member (Note NoteOn (Pitch (48 + (whiteKeys !! layer))) 127) noteSet
+
 playLayers = do
   let combined = combineLayers layers
    in do
@@ -138,10 +143,10 @@ playLayers = do
            sh $ show updatedInst
            case (view events) of
              Just ((t, event), rest) -> do
-               sh $ show $ event
                if t > currentTime
                  then threadDelay $ round $ (t - currentTime) * 1000000
                  else return ()
+               sh $ (show event) ++ " " ++ (show $ isLayerOn inst event)
                loop updatedInst t rest
              Nothing -> do
                return ()
