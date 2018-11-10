@@ -117,15 +117,20 @@ bpm = 120
 
 abstractTimeToSeconds at = (60.0 / bpm) * at
 -- [(time, absnote)]
-layers = [
+data AbstractNote = AbstractNote Double Int
+data AbstractSequence = AbstractSequence [[AbstractNote]]
+listToAbstractSequence :: [[(Double, Int)]] -> AbstractSequence
+listToAbstractSequence pss =
+  AbstractSequence $ map (\ps -> map (\p -> case p of (t, p) -> AbstractNote t p) ps) pss
+aSequence = listToAbstractSequence [
   [(0, 0), (1, 1), (2, 2), (3, 3)],
   [(0.5, 2), (1.5, 3), (2.5, 0), (2.75, 0), (3.5, 1)] ]
 
 -- ooo :: MinPrioHeap Double(Double, Double)
 -- ooo = fromList [(1.3, (1.3, 3))]
 
-combineLayers :: [[(Double, Double)]] -> MinPrioHeap Double (Int, Double, Double)
-combineLayers layers = fromList $ concat $ map (\ix -> case ix of (layer, es) -> map (\e -> case e of (t, ni) -> (t, (layer, t, ni))) es) $ zip [0..] layers
+combineLayers :: AbstractSequence -> MinPrioHeap Double (Int, Double, Int)
+combineLayers (AbstractSequence layers) = fromList $ concat $ map (\ix -> case ix of (layer, es) -> map (\e -> case e of (AbstractNote t ni) -> (t, (layer, t, ni))) es) $ zip [0..] layers
 
 data Inst = Inst NoteSet deriving Show
 processNoteSet (Inst noteSet) events = Inst (updateNoteSetMulti noteSet events)
@@ -134,9 +139,9 @@ emptyInst = Inst Set.empty
 isLayerOn (Inst noteSet) (layer, t, ni) = Set.member (Note NoteOn (Pitch (48 + (whiteKeys !! layer))) 127) noteSet
 
 playLayers = do
-  let combined = combineLayers layers
+  let combined = combineLayers aSequence
    in do
-     let loop :: Inst -> Double -> MinPrioHeap Double (Int, Double, Double) -> IO ()
+     let loop :: Inst -> Double -> MinPrioHeap Double (Int, Double, Int) -> IO ()
          loop inst currentTime events =  do
            readyEvents <- readReadyEvents
            let updatedInst = processNoteSet inst readyEvents
