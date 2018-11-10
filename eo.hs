@@ -117,7 +117,7 @@ bpm = 120
 
 abstractTimeToSeconds at = (60.0 / bpm) * at
 -- [(time, absnote)]
-data AbstractNote = AbstractNote Double Int
+data AbstractNote = AbstractNote Double Int deriving Show
 data AbstractSequence = AbstractSequence [[AbstractNote]]
 listToAbstractSequence :: [[(Double, Int)]] -> AbstractSequence
 listToAbstractSequence pss =
@@ -129,22 +129,22 @@ aSequence = listToAbstractSequence [
 -- ooo :: MinPrioHeap Double(Double, Double)
 -- ooo = fromList [(1.3, (1.3, 3))]
 
-combineLayers :: AbstractSequence -> MinPrioHeap Double (Int, Double, Int)
+combineLayers :: AbstractSequence -> MinPrioHeap Double (Int, AbstractNote)
 combineLayers (AbstractSequence layers) = fromList $ concat $
   map groo $ zip [0..] layers
-  where boo layer (AbstractNote t ni) = (t, (layer, t, ni))
+  where boo layer n@(AbstractNote t ni) = (t, (layer, n))
         groo (layer, es) = map (boo layer) es
 
 data Inst = Inst NoteSet deriving Show
 processNoteSet (Inst noteSet) events = Inst (updateNoteSetMulti noteSet events)
 emptyInst = Inst Set.empty
 
-isLayerOn (Inst noteSet) (layer, t, ni) = Set.member (Note NoteOn (Pitch (48 + (whiteKeys !! layer))) 127) noteSet
+isLayerOn (Inst noteSet) (layer, absNote) = Set.member (Note NoteOn (Pitch (48 + (whiteKeys !! layer))) 127) noteSet
 
 playLayers = do
   let combined = combineLayers aSequence
    in do
-     let loop :: Inst -> Double -> MinPrioHeap Double (Int, Double, Int) -> IO ()
+     let loop :: Inst -> Double -> MinPrioHeap Double (Int, AbstractNote) -> IO ()
          loop inst currentTime events =  do
            readyEvents <- readReadyEvents
            let updatedInst = processNoteSet inst readyEvents
