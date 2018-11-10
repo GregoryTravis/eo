@@ -131,9 +131,9 @@ aSequence = listToAbstractSequence [
 
 combineLayers :: AbstractSequence -> MinPrioHeap Double (Int, Double, Int)
 combineLayers (AbstractSequence layers) = fromList $ concat $
-  map (\ix -> case ix of
-                (layer, es) -> map (boo layer) es) $ zip [0..] layers
+  map groo $ zip [0..] layers
   where boo layer (AbstractNote t ni) = (t, (layer, t, ni))
+        groo (layer, es) = map (boo layer) es
 
 data Inst = Inst NoteSet deriving Show
 processNoteSet (Inst noteSet) events = Inst (updateNoteSetMulti noteSet events)
