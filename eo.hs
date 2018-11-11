@@ -146,15 +146,15 @@ playLayers = do
    in do
      let loop :: Inst -> Double -> MinPrioHeap Double (Int, AbstractNote) -> IO ()
          loop inst currentTime events =  do
-           readyEvents <- readReadyEvents
-           let updatedInst = processNoteSet inst readyEvents
-           sh $ show updatedInst
            case (view events) of
              Just ((t, event), rest) -> do
                if t > currentTime
                  then threadDelay $ round $ (t - currentTime) * 1000000
                  else return ()
                sh $ (show event) ++ " " ++ (show $ isLayerOn inst event)
+               readyEvents <- readReadyEvents
+               let updatedInst = processNoteSet inst readyEvents
+               sh $ show updatedInst
                loop updatedInst t rest
              Nothing -> do
                return ()
