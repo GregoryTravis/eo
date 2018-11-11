@@ -7,6 +7,7 @@ import Data.List.Split
 import qualified Data.Map.Strict as Map
 import Data.Maybe
 import qualified Data.Set as Set
+import Debug.Trace
 import GHC.Stack
 import Data.Ratio
 import System.IO
@@ -59,6 +60,7 @@ atoi s = read s :: Int
 noteOffsets = Map.fromList [('A', 9), ('B', 11), ('C', 0), ('D', 2), ('E', 4), ('F', 5), ('G', 7)]
 offsetNotes = Map.fromList $ map (\pr -> case pr of (c, o) -> (o, c)) (Map.toList noteOffsets)
 whiteKeys = [0, 2, 4, 5, 7, 9, 11]
+pitchToWhiteKey p = fromJust $ find (p ==) whiteKeys
 
 -- parsePitch :: [Char] -> Int
 parsePitch [letter, octave] = ((atoi [octave] + 1) * 12) + fromJust (Map.lookup letter noteOffsets) -- ((ord letter) - (ord 'A') - 2)
@@ -135,32 +137,50 @@ combineLayers (AbstractSequence layers) = fromList $ concat $
   where boo layer n@(AbstractNote t ni) = (t, (layer, n))
         groo (layer, es) = map (boo layer) es
 
-data Inst = Inst NoteSet deriving Show
-processNoteSet (Inst noteSet) events = Inst (updateNoteSetMulti noteSet events)
-emptyInst = Inst Set.empty
+class Show a => Inst a where
+  --empty :: a
+  processEvent :: a -> Event -> a
 
-isLayerOn (Inst noteSet) (layer, absNote) = Set.member (Note NoteOn (Pitch (48 + (whiteKeys !! layer))) 127) noteSet
+data LayerControl = LayerControl (Int, Int) (Set.Set Int) deriving Show
+instance Inst LayerControl where
+  --empty = LayerControl Set.empty
+  processEvent x@(LayerControl range layerSet) (Note onOff (Pitch p) _) = if (inRange p range) then LayerControl range ((case onOff of NoteOn -> Set.insert ; NoteOff -> Set.delete) (pitchToLayer p range) layerSet) else x
+    where pitchToLayer p (lo, hi) = pitchToWhiteKey (p - lo)
+          inRange p (lo, hi) = p >= lo && p <= hi
+  --processAbstractNote absNote layer
+processEvents :: Inst i => i -> [Event] -> i
+processEvents inst (e:es) = processEvents (processEvent inst e) es
+processEvents inst [] = inst
+
+--data Inst = Inst NoteSet deriving Show
+--processNoteSet (Inst noteSet) events = Inst (updateNoteSetMulti noteSet events)
+--emptyInst = Inst Set.empty
+
+--isLayerOn (Inst noteSet) (layer, absNote) = Set.member (Note NoteOn (Pitch (48 + (whiteKeys !! layer))) 127) noteSet
 
 playLayers = do
   let combined = combineLayers aSequence
    in do
-     let loop :: Inst -> Double -> MinPrioHeap Double (Int, AbstractNote) -> IO ()
+     let loop :: Inst i => i -> Double -> MinPrioHeap Double (Int, AbstractNote) -> IO ()
          loop inst currentTime events =  do
            case (view events) of
-             Just ((t, event), rest) -> do
+             Just ((t, (layer, absNote)), rest) -> do
                if t > currentTime
                  then threadDelay $ round $ (t - currentTime) * 1000000
                  else return ()
+{-
                let isOn = isLayerOn inst event
                    plusMinus = if isOn then "+" else "-"
                sh $ plusMinus ++ " " ++ (show event)
+-}
+               sh $ (show absNote) ++ " " ++ (show layer)
                readyEvents <- readReadyEvents
-               let updatedInst = processNoteSet inst readyEvents
+               let updatedInst = processEvents inst readyEvents
                sh $ show updatedInst
                loop updatedInst t rest
              Nothing -> do
                return ()
-      in loop emptyInst 0.0 combined
+      in loop (LayerControl (48, 48+11) Set.empty) 0.0 combined
 
 main = do
   sh "start"
