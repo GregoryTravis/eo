@@ -151,7 +151,9 @@ playLayers = do
                if t > currentTime
                  then threadDelay $ round $ (t - currentTime) * 1000000
                  else return ()
-               sh $ (show event) ++ " " ++ (show $ isLayerOn inst event)
+               let isOn = isLayerOn inst event
+                   plusMinus = if isOn then "+" else "-"
+               sh $ plusMinus ++ " " ++ (show event)
                readyEvents <- readReadyEvents
                let updatedInst = processNoteSet inst readyEvents
                sh $ show updatedInst
