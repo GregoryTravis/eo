@@ -147,7 +147,7 @@ processEvents inst [] = inst
 
 class (Show a, Controller a) => Inst a where
   --processEvent :: a -> Event -> a
-  processAbstractNote :: AbstractNote -> a -> Int
+  processAbstractNote :: AbstractNote -> a -> Maybe Int
 
 data LayerControl = LayerControl (Int, Int) (Set.Set Int) deriving Show
 instance Controller LayerControl where
@@ -164,7 +164,9 @@ instance Controller ChordControl where
 -- This is some rock-bottom naming going on here
 noteToNote (ChordControl range noteSet) ni =
   let noteList = Set.toAscList noteSet
-   in noteList !! (ni `mod` length noteList)
+   in if length noteList > 0
+        then Just $ noteList !! (ni `mod` length noteList)
+        else Nothing
 
 data TheInst = TheInst LayerControl ChordControl deriving Show
 instance Controller TheInst where
@@ -188,7 +190,7 @@ playLayers = do
                sh $ plusMinus ++ " " ++ (show event)
 -}
                sh $ (show absNote) ++ " " ++ (show layer)
-               --sh $ show $ processAbstractNote inst absNote
+               sh $ show $ processAbstractNote absNote inst
                readyEvents <- readReadyEvents
                let updatedInst = processEvents inst readyEvents
                sh $ show updatedInst

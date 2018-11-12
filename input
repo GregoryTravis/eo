@@ -1,3 +1,6 @@
+echo channel 1 note-on C4 127
+echo channel 1 note-on D4 127
+echo channel 1 note-on E4 127
 echo channel 1 note-on C3 127
 sleep 0.5
 echo channel 1 note-on D3 127
