@@ -190,7 +190,12 @@ playLayers = do
                sh $ plusMinus ++ " " ++ (show event)
 -}
                sh $ (show absNote) ++ " " ++ (show layer)
-               sh $ show $ processAbstractNote absNote inst
+               let concNote = processAbstractNote absNote inst
+               sh $ show $ concNote
+               case concNote of
+                 Just concPitch -> do
+                   sh $ show $ sendmidiRenderEvent (Note NoteOn (Pitch (concPitch + 48)) 127)
+                 Nothing -> return ()
                readyEvents <- readReadyEvents
                let updatedInst = processEvents inst readyEvents
                sh $ show updatedInst
