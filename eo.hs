@@ -184,11 +184,6 @@ playLayers = do
                if t > currentTime
                  then threadDelay $ round $ (t - currentTime) * 1000000
                  else return ()
-{-
-               let isOn = isLayerOn inst event
-                   plusMinus = if isOn then "+" else "-"
-               sh $ plusMinus ++ " " ++ (show event)
--}
                sh $ (show absNote) ++ " " ++ (show layer)
                let concNote = processAbstractNote absNote inst
                sh $ show $ concNote
