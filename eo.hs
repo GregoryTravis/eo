@@ -7,7 +7,7 @@ import Data.List.Split
 import qualified Data.Map.Strict as Map
 import Data.Maybe
 import qualified Data.Set as Set
-import Debug.Trace
+--import Debug.Trace
 import GHC.Stack
 import Data.Ratio
 import System.IO
@@ -137,26 +137,30 @@ combineLayers (AbstractSequence layers) = fromList $ concat $
   where boo layer n@(AbstractNote t ni) = (t, (layer, n))
         groo (layer, es) = map (boo layer) es
 
-class Show a => Inst a where
+class Show a => Controller a where
   --empty :: a
   processEvent :: a -> Event -> a
 
+processEvents :: Controller i => i -> [Event] -> i
+processEvents inst (e:es) = processEvents (processEvent inst e) es
+processEvents inst [] = inst
+
+class (Show a, Controller a) => Inst a where
+  --processEvent :: a -> Event -> a
+  processAbstractNote :: absNote -> a -> ()
+
 data LayerControl = LayerControl (Int, Int) (Set.Set Int) deriving Show
-instance Inst LayerControl where
+instance Controller LayerControl where
   --empty = LayerControl Set.empty
   processEvent x@(LayerControl range layerSet) (Note onOff (Pitch p) _) = if (inRange p range) then LayerControl range ((case onOff of NoteOn -> Set.insert ; NoteOff -> Set.delete) (pitchToLayer p range) layerSet) else x
     where pitchToLayer p (lo, hi) = pitchToWhiteKey (p - lo)
           inRange p (lo, hi) = p >= lo && p <= hi
-  --processAbstractNote absNote layer
-processEvents :: Inst i => i -> [Event] -> i
-processEvents inst (e:es) = processEvents (processEvent inst e) es
-processEvents inst [] = inst
 
---data Inst = Inst NoteSet deriving Show
---processNoteSet (Inst noteSet) events = Inst (updateNoteSetMulti noteSet events)
---emptyInst = Inst Set.empty
-
---isLayerOn (Inst noteSet) (layer, absNote) = Set.member (Note NoteOn (Pitch (48 + (whiteKeys !! layer))) 127) noteSet
+data TheInst = TheInst LayerControl deriving Show
+instance Controller TheInst where
+  processEvent (TheInst controller) event = TheInst (processEvent controller event)
+instance Inst TheInst where
+  processAbstractNote abstractNote inst = ()
 
 playLayers = do
   let combined = combineLayers aSequence
@@ -180,7 +184,7 @@ playLayers = do
                loop updatedInst t rest
              Nothing -> do
                return ()
-      in loop (LayerControl (48, 48+11) Set.empty) 0.0 combined
+      in loop (TheInst (LayerControl (48, 48+11) Set.empty)) 0.0 combined
 
 main = do
   sh "start"
