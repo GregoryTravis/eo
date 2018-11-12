@@ -147,7 +147,7 @@ processEvents inst [] = inst
 
 class (Show a, Controller a) => Inst a where
   --processEvent :: a -> Event -> a
-  processAbstractNote :: absNote -> a -> ()
+  processAbstractNote :: AbstractNote -> a -> Int
 
 data LayerControl = LayerControl (Int, Int) (Set.Set Int) deriving Show
 instance Controller LayerControl where
@@ -156,11 +156,21 @@ instance Controller LayerControl where
     where pitchToLayer p (lo, hi) = pitchToWhiteKey (p - lo)
           inRange p (lo, hi) = p >= lo && p <= hi
 
-data TheInst = TheInst LayerControl deriving Show
+data ChordControl = ChordControl (Int, Int) (Set.Set Int) deriving Show
+instance Controller ChordControl where
+  processEvent x@(ChordControl range noteSet) (Note onOff (Pitch p) _) = if (inRange p range) then ChordControl range ((case onOff of NoteOn -> Set.insert ; NoteOff -> Set.delete) (pitchToNote p range) noteSet) else x
+    where pitchToNote p (lo, hi) = p - lo
+          inRange p (lo, hi) = p >= lo && p <= hi
+-- This is some rock-bottom naming going on here
+noteToNote (ChordControl range noteSet) ni =
+  let noteList = Set.toAscList noteSet
+   in noteList !! (ni `mod` length noteList)
+
+data TheInst = TheInst LayerControl ChordControl deriving Show
 instance Controller TheInst where
-  processEvent (TheInst controller) event = TheInst (processEvent controller event)
+  processEvent (TheInst lc cc) event = TheInst (processEvent lc event) (processEvent cc event)
 instance Inst TheInst where
-  processAbstractNote abstractNote inst = ()
+  processAbstractNote (AbstractNote t ni) (TheInst lc cc) = noteToNote cc ni
 
 playLayers = do
   let combined = combineLayers aSequence
@@ -178,13 +188,14 @@ playLayers = do
                sh $ plusMinus ++ " " ++ (show event)
 -}
                sh $ (show absNote) ++ " " ++ (show layer)
+               --sh $ show $ processAbstractNote inst absNote
                readyEvents <- readReadyEvents
                let updatedInst = processEvents inst readyEvents
                sh $ show updatedInst
                loop updatedInst t rest
              Nothing -> do
                return ()
-      in loop (TheInst (LayerControl (48, 48+11) Set.empty)) 0.0 combined
+      in loop (TheInst (LayerControl (48, 48+11) Set.empty) (ChordControl (60, 60+11) Set.empty)) 0.0 combined
 
 main = do
   sh "start"
