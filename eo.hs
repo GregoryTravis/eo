@@ -78,20 +78,6 @@ pitchToLetter num = case divMod num 12 of
   (d, m) -> (theOctave !! m) ++ (show (d - 1))
 sendmidiRenderEvent (Note onOff (Pitch pitch) vel) = intercalate " " ["channel", "1", (case onOff of NoteOn -> "note-on" ; NoteOff -> "note-off"), pitchToLetter pitch, show vel]
 
-type NoteSet = Set.Set Event
-
-updateNoteSet :: NoteSet -> Event -> NoteSet
-updateNoteSet noteSet (Note NoteOn pitch vel) =
-  Set.insert (Note NoteOn pitch vel) noteSet
-updateNoteSet noteSet (Note NoteOff pitch vel) =
-  -- assert (Set.member (NoteOn pitch vel) noteSet)
-  Set.delete (Note NoteOn pitch vel) noteSet
-updateNoteSetMulti noteSet (e:es) = updateNoteSetMulti (updateNoteSet noteSet e) es
-updateNoteSetMulti noteSet [] = noteSet
-
-showNoteSet :: [Event] -> [String]
-showNoteSet events = map show events
-
 processEventLine :: String -> Maybe Event
 processEventLine line =
   if isNote line
