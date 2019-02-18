@@ -8,6 +8,8 @@ import Foreign.Ptr
 import Foreign.Storable (peekElemOff, pokeElemOff, sizeOf)
 import Sound.File.Sndfile as SF
 import qualified Sound.File.Sndfile.Buffer.StorableVector as BV
+import System.Environment (getArgs)
+import System.IO
 
 import Util
 
@@ -22,6 +24,22 @@ foreign import ccall "write_audio" write_audio :: Ptr Float -> Int -> IO ()
 foreign import ccall "term_audio" term_audio :: IO ()
 
 theBufferSize = 64
+desiredLengthFrames = 44100 * 4
+
+-- omg because I can't believe writing this is easier than finding one
+omgResample :: Ptr Float -> Int -> Int -> IO (Ptr Float)
+omgResample src srcNumFrames destNumFrames = do
+  dest <- (mallocArray (destNumFrames * 2)) :: IO (Ptr Float)
+  mapM_ (resamp src dest) [0..(srcNumFrames-1)]
+  return dest
+  where resamp :: Ptr Float -> Ptr Float -> Int -> IO ()
+        resamp src dest srcI = let destI = floor $ (fromIntegral srcI) * ((fromIntegral destNumFrames) / (fromIntegral srcNumFrames))
+                                in do sampleL <- peekElemOff src (toF (srcI * 2))
+                                      pokeElemOff dest (toF (destI * 2)) sampleL
+                                      sampleR <- peekElemOff src (toF (srcI * 2) + 1)
+                                      pokeElemOff dest (toF (destI * 2) + 1) sampleR
+        toF :: Int -> Int
+        toF i = i -- * (sizeOf (undefined :: Float))
 
 copyAndStereoize :: Int -> Int -> ForeignPtr Float -> IO (Ptr Float)
 copyAndStereoize 2 numFrames fptr =
@@ -39,8 +57,8 @@ copyAndStereoize 1 numFrames fptr =
                                   pokeElemOff dest (offset*2) sample
                                   pokeElemOff dest (offset*2 + 1) sample
 
-gruu :: IO (Ptr Float, Int)
-gruu = do
+gruu :: String -> IO (Ptr Float, Int)
+gruu filename = do
   -- open the file that we want to know about
   --f <- SF.openFile "loop2.wav" SF.ReadMode SF.defaultInfo
 
@@ -48,10 +66,10 @@ gruu = do
   --let info = SF.hInfo f
 
   --bruf :: BV.Buffer CFloat
-  (info, Just (bruf :: BV.Buffer Float)) <- SF.readFile "loop2.wav"
+  (info, Just (bruf :: BV.Buffer Float)) <- SF.readFile filename
   let v = BV.fromBuffer bruf
   let (fp, a, b) = SVB.toForeignPtr v
-  msp (fp, a, b)
+  msp (filename, fp, a, b)
   putStrLn $ assert (a==0) (show a)
 
   -- close the file
@@ -81,17 +99,24 @@ writeAudio bufferSize buffer = loop 0
                                         loop (sofar + toWrite)
 
 
-main = do putStrLn "asdf"
+main = do hSetBuffering stdout NoBuffering
+          putStrLn "asdf"
           i <- foo 12
           putStrLn "asdf2"
+          args <- getArgs
+          msp "args"
+          msp args
           init_audio
           putStrLn (show i)
           --buffer :: Ptr CFloat
 
-          (p, totalSize) <- gruu
-          msp ("yeahh", p, totalSize)
+          loops <- mapM gruu args
+          --(p, totalSize) <- gruu
+          --msp ("yeahh", p, totalSize)
           --withForeignPtr fp (writeAudio totalSize)
-          writeAudio totalSize p
+          resampled <- mapM (\(p, totalSize) -> omgResample p totalSize desiredLengthFrames) loops
+          mapM (\(p, totalSize) -> writeAudio totalSize p) loops
+          mapM (\p -> writeAudio desiredLengthFrames p) resampled
           --writeAudioAllAtOnce totalSize p
 
           buffer <- (mallocArray theBufferSize) :: IO (Ptr CFloat)

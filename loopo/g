@@ -2,5 +2,5 @@
 #gcc -o nonblocking src/nonblocking.c -lportaudio && ./nonblocking
 #exit
 
-(stack build && stack exec loopo) 2>&1 | tee out
+(stack build && stack exec loopo loop2.wav loop0.wav) 2>&1 | tee out
 #stack build && stack exec loopo
