@@ -2,5 +2,14 @@
 #gcc -o nonblocking src/nonblocking.c -lportaudio && ./nonblocking
 #exit
 
-(stack build && . input | (stack exec loopo loop2.wav loop0.wav)) 2>&1 | tee out
+#(stack build && . input | (stack exec loopo loop*.wav)) 2>&1 | tee out
+(stack build && receivemidi dev "US-122 MKII MIDI" | (stack exec loopo loop*.wav)) 2>&1 | tee out
 #stack build && stack exec loopo
+
+
+rm -f eo eo.hi
+ghc -fprof-auto -fprof-cafs -prof -o eo eo.hs
+echo ok
+. input | (./eo +RTS -xc) 2>&1
+#receivemidi dev "US-122 MKII MIDI" | ./eo +RTS -xc | sendmidi dev "US-122 MKII MIDI" --
+#./eo

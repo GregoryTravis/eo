@@ -2,7 +2,7 @@
 import Control.Concurrent (threadDelay)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Set as S
+import qualified Data.Set as S
 import Data.StorableVector.Base as SVB
 import Foreign.C
 import Foreign.Marshal.Array (mallocArray, copyArray)
@@ -113,36 +113,61 @@ noteOffsets = Map.fromList [('A', 9), ('B', 11), ('C', 0), ('D', 2), ('E', 4), (
 parsePitch [letter, octave] = ((atoi [octave] + 1) * 12) + fromJust (Map.lookup letter noteOffsets) -- ((ord letter) - (ord 'A') - 2)
 parsePitch [letter, sharp, octave] = parsePitch [letter, octave] + 1
 
-parseEvent :: String -> (Int, Bool)
+parseEvent :: String -> Maybe (Int, Bool)
 parseEvent line =
   case (words line) of
     [channel, one, eventType, pitchS, velocityS] ->
       assert (channel == "channel")
         assert (one == "1")
           assert (eventType == "note-on" || eventType == "note-off")
-            (parsePitch pitchS, eventType == "note-on")
+            Just (parsePitch pitchS, eventType == "note-on")
+    _ -> Nothing
 
-processEvents :: Set Int -> IO (Set Int)
+processEvents :: S.Set Int -> IO (S.Set Int)
 processEvents downKeys = do
   ready <- hReady stdin
   if ready then do line <- getLine
-                   msp line
-                   let (n, isDown) = parseEvent line
-                   let newDownKeys = if isDown then S.insert n downKeys else S.delete n downKeys
+                   --msp line
+                   --let (n, isDown) = parseEvent line
+                   let newDownKeys = case parseEvent line of Just (n, isDown) -> if isDown then S.insert n downKeys else S.delete n downKeys
+                                                             Nothing -> downKeys
                    processEvents newDownKeys
            else return downKeys
 
-{-
-playOneBuffer :: [Ptr Float] -> Int -> IO Int
-playOneBuffer loops sofar
-  | sofar == desiredLengthFrames = writeAudio loops 0
-  | sofar < desiredLengthFrames = let remaining = desiredLengthFrames - sofar
-                                      toWrite = min remaining theBufferSize
-                                      size = (undefined :: Float) -- Haskell, you make-a me laugh
-                                      subBufferStart = plusPtr buffer (sofar * (sizeOf size) * 2)
-                                   in do write_audio subBufferStart toWrite
-                                         return $ sofar + toWrite
--}
+getActiveSamples :: [Ptr Float] -> S.Set Int -> [Ptr Float]
+getActiveSamples loops active =
+  map (\(_, loop) -> loop) $ filter (\(i, loop) -> isActive i) (zip [0..] loops)
+  where isActive i = S.member (i + 60) active
+
+-- mixBuffers resampled buffer newDownKeys
+mixBuffers :: [Ptr Float] -> Ptr Float -> Int -> S.Set Int -> IO ()
+mixBuffers loops buffer curPos downKeys =
+  let remaining = desiredLengthFrames - curPos
+      toWrite = min remaining theBufferSize
+      --size = (undefined :: Float) -- Haskell, you make-a me laugh
+      --subBufferStart = plusPtr buffer (sofar * (sizeOf size) * 2)
+      activeLoops = getActiveSamples loops downKeys
+   in do mapM_ (doIt activeLoops buffer) [curPos..(curPos+toWrite-1)]
+         return ()
+   where doIt :: [Ptr Float] -> Ptr Float -> Int -> IO ()
+         doIt loops dest i = do 
+                                --msp "hey"
+                                --msp i
+                                leftSamples <- mapM (getSample (i*2)) loops
+                                rightSamples <- mapM (getSample (i*2+1)) loops
+                                let leftSample = avg leftSamples
+                                let rightSample = avg rightSamples
+                                --msp leftSamples
+                                --msp leftSample
+                                let di = i - curPos
+                                pokeElemOff dest (di*2) leftSample
+                                pokeElemOff dest (di*2+1) rightSample
+           where getSample fi src = do peekElemOff src fi
+                 avg :: [Float] -> Float
+                 avg [] = 0
+                 avg samples = (sum samples) / fromIntegral (length samples)
+   --in do write_audio subBufferStart toWrite
+         --return $ sofar + toWrite
 
 main = do hSetBuffering stdout NoBuffering
           putStrLn "asdf"
@@ -154,14 +179,6 @@ main = do hSetBuffering stdout NoBuffering
 
           let downKeys = S.empty
 
-          let loop = do newDownKeys <- processEvents downKeys
-                        threadDelay 100000
-                        msp newDownKeys
-                        loop
-          loop
-
-          exitFailure
-
           init_audio
           putStrLn (show i)
           --buffer :: Ptr CFloat
@@ -171,14 +188,29 @@ main = do hSetBuffering stdout NoBuffering
           --msp ("yeahh", p, totalSize)
           --withForeignPtr fp (writeAudio totalSize)
           resampled <- mapM (\(p, totalSize) -> omgResample p totalSize desiredLengthFrames) loops
-          mapM (\(p, totalSize) -> writeAudio totalSize p) loops
-          mapM (\p -> writeAudio desiredLengthFrames p) resampled
+          --mapM (\(p, totalSize) -> writeAudio totalSize p) loops
+          --mapM (\p -> writeAudio desiredLengthFrames p) resampled
           --writeAudioAllAtOnce totalSize p
 
-          buffer <- (mallocArray theBufferSize) :: IO (Ptr CFloat)
-          pokeElemOff buffer 0 2.3
-          pokeElemOff buffer 1 4.5
-          bar buffer
+          buffer <- (mallocArray (theBufferSize * 2)) :: IO (Ptr Float)
+
+          let loop downKeys curPos = do
+                newDownKeys <- processEvents downKeys
+                if newDownKeys /= downKeys then msp newDownKeys else return ()
+                --msp ("nDK", newDownKeys)
+                mixBuffers resampled buffer curPos newDownKeys
+                --msp ("writey", curPos)
+                writeAudioAllAtOnce theBufferSize buffer
+                let newCurPos = if curPos + theBufferSize >= desiredLengthFrames then 0 else curPos + theBufferSize
+                --threadDelay 100000
+                loop newDownKeys newCurPos
+
+          loop downKeys 0
+
+          --buffer <- (mallocArray theBufferSize) :: IO (Ptr CFloat)
+          --pokeElemOff buffer 0 2.3
+          --pokeElemOff buffer 1 4.5
+          --bar buffer
 
           term_audio
           putStrLn (show i)
