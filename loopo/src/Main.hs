@@ -1,4 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+import Control.Concurrent (threadDelay)
+import qualified Data.Map as Map
+import Data.Maybe
+import Data.Set as S
 import Data.StorableVector.Base as SVB
 import Foreign.C
 import Foreign.Marshal.Array (mallocArray, copyArray)
@@ -9,6 +13,7 @@ import Foreign.Storable (peekElemOff, pokeElemOff, sizeOf)
 import Sound.File.Sndfile as SF
 import qualified Sound.File.Sndfile.Buffer.StorableVector as BV
 import System.Environment (getArgs)
+import System.Exit
 import System.IO
 
 import Util
@@ -98,6 +103,46 @@ writeAudio bufferSize buffer = loop 0
                                   in do write_audio subBufferStart toWrite
                                         loop (sofar + toWrite)
 
+atoi s = read s :: Int
+noteOffsets = Map.fromList [('A', 9), ('B', 11), ('C', 0), ('D', 2), ('E', 4), ('F', 5), ('G', 7)]
+--offsetNotes = Map.fromList $ map (\pr -> case pr of (c, o) -> (o, c)) (Map.toList noteOffsets)
+--whiteKeys = [0, 2, 4, 5, 7, 9, 11]
+--pitchToWhiteKey p = fromJust $ find (p ==) whiteKeys
+
+-- parsePitch :: [Char] -> Int
+parsePitch [letter, octave] = ((atoi [octave] + 1) * 12) + fromJust (Map.lookup letter noteOffsets) -- ((ord letter) - (ord 'A') - 2)
+parsePitch [letter, sharp, octave] = parsePitch [letter, octave] + 1
+
+parseEvent :: String -> (Int, Bool)
+parseEvent line =
+  case (words line) of
+    [channel, one, eventType, pitchS, velocityS] ->
+      assert (channel == "channel")
+        assert (one == "1")
+          assert (eventType == "note-on" || eventType == "note-off")
+            (parsePitch pitchS, eventType == "note-on")
+
+processEvents :: Set Int -> IO (Set Int)
+processEvents downKeys = do
+  ready <- hReady stdin
+  if ready then do line <- getLine
+                   msp line
+                   let (n, isDown) = parseEvent line
+                   let newDownKeys = if isDown then S.insert n downKeys else S.delete n downKeys
+                   processEvents newDownKeys
+           else return downKeys
+
+{-
+playOneBuffer :: [Ptr Float] -> Int -> IO Int
+playOneBuffer loops sofar
+  | sofar == desiredLengthFrames = writeAudio loops 0
+  | sofar < desiredLengthFrames = let remaining = desiredLengthFrames - sofar
+                                      toWrite = min remaining theBufferSize
+                                      size = (undefined :: Float) -- Haskell, you make-a me laugh
+                                      subBufferStart = plusPtr buffer (sofar * (sizeOf size) * 2)
+                                   in do write_audio subBufferStart toWrite
+                                         return $ sofar + toWrite
+-}
 
 main = do hSetBuffering stdout NoBuffering
           putStrLn "asdf"
@@ -106,6 +151,17 @@ main = do hSetBuffering stdout NoBuffering
           args <- getArgs
           msp "args"
           msp args
+
+          let downKeys = S.empty
+
+          let loop = do newDownKeys <- processEvents downKeys
+                        threadDelay 100000
+                        msp newDownKeys
+                        loop
+          loop
+
+          exitFailure
+
           init_audio
           putStrLn (show i)
           --buffer :: Ptr CFloat
