@@ -195,7 +195,7 @@ error:
     exit(1);
 }
 
-int main()
+int mmain()
 {
     init_audio();
     float *buffer = (float*) malloc(sizeof(float) * 2 * FRAMES_PER_BUFFER);
@@ -217,7 +217,13 @@ int main()
     term_audio();
 }
 
-int foo(int x) {
+int foo(int x)
+{
   printf("foo here\n");
   return x * 2;
+}
+
+void bar(float fs[])
+{
+  printf("bar here %f %f\n", fs[0], fs[1]);
 }
