@@ -13,6 +13,17 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:  README.md
 
+Library pa
+  -- ...
+  -- The C source files to compile, in that order
+  C-sources: src/nonblocking.c
+  -- The location of the header files
+  --Include-dirs: include
+  -- The header files to be included
+  --Includes: foobar.h, foobaz.h
+  -- Header files to install
+  --Install-includes: foobar.h, foobaz.h
+
 executable loopo
   hs-source-dirs:      src
   main-is:             Main.hs
@@ -20,9 +31,10 @@ executable loopo
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5,
                        portaudio >= 0.2.4,
-                       vector,
-                       hsndfile,
-                       c2hs >= 0.16.3
+                       pa
+                       --vector,
+                       --hsndfile,
+                       --c2hs >= 0.16.3
                        --array,
                        --explicit-exception,
                        --jack,

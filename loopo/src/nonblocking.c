@@ -99,8 +99,8 @@ static void StreamFinished( void* userData )
 }
 
 /*******************************************************************/
-int main(void);
-int main(void)
+int _main(void);
+int _main(void)
 {
     PaStreamParameters outputParameters;
     PaStream *stream;
@@ -187,4 +187,9 @@ error:
     fprintf( stderr, "Error number: %d\n", err );
     fprintf( stderr, "Error message: %s\n", Pa_GetErrorText( err ) );
     return err;
+}
+
+int foo(int x) {
+  printf("foo here\n");
+  return x * 2;
 }
