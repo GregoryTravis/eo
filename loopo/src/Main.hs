@@ -137,7 +137,7 @@ processEvents downKeys = do
 getActiveSamples :: [Ptr Float] -> S.Set Int -> [Ptr Float]
 getActiveSamples loops active =
   map (\(_, loop) -> loop) $ filter (\(i, loop) -> isActive i) (zip [0..] loops)
-  where isActive i = S.member (i + 60) active
+  where isActive i = S.member (i + 36) active
 
 -- mixBuffers resampled buffer newDownKeys
 mixBuffers :: [Ptr Float] -> Ptr Float -> Int -> S.Set Int -> IO ()
