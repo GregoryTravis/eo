@@ -1,11 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 import Data.StorableVector.Base as SVB
 import Foreign.C
-import Foreign.Marshal.Array (mallocArray)
+import Foreign.Marshal.Array (mallocArray, copyArray)
 --import Foreign.Marshal.Utils (fillBytes)
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import Foreign.Storable (pokeElemOff)
+import Foreign.Storable (peekElemOff, pokeElemOff)
 import Sound.File.Sndfile as SF
 import qualified Sound.File.Sndfile.Buffer.StorableVector as BV
 
@@ -23,9 +23,23 @@ foreign import ccall "term_audio" term_audio :: IO ()
 
 bufferSize = 64
 
+copyAndStereoize :: Int -> Int -> ForeignPtr Float -> IO (Ptr Float)
+copyAndStereoize 2 numFrames fptr =
+  -- Just copy
+  do dest <- (mallocArray (numFrames * 2)) :: IO (Ptr Float)
+     withForeignPtr fptr (\src -> copyArray src dest numFrames)
+     return dest
+copyAndStereoize 1 numFrames fptr =
+  -- Duplicate each sample
+  do dest <- (mallocArray (numFrames * 2)) :: IO (Ptr Float)
+     withForeignPtr fptr $ dupSamples dest
+     return dest
+  where dupSamples dest src = do mapM_ (copy src dest) [0..(numFrames-1)]
+        copy src dest offset = do sample <- peekElemOff src offset
+                                  pokeElemOff dest (offset*2) sample
+                                  pokeElemOff dest (offset*2 + 1) sample
 
-
-gruu :: IO (ForeignPtr Float, Int)
+gruu :: IO (Ptr Float, Int)
 gruu = do
   -- open the file that we want to know about
   --f <- SF.openFile "loop2.wav" SF.ReadMode SF.defaultInfo
@@ -48,8 +62,10 @@ gruu = do
   putStrLn $ "sample rate: " ++ (show $ SF.samplerate info)
   putStrLn $ "channels:    " ++ (show $ SF.channels info)
   putStrLn $ "frames:      " ++ (show $ SF.frames info)
+
   --assertM "huhh" (a == 0) ()
-  return (fp, b)
+  stereo <- copyAndStereoize (SF.channels info) (SF.frames info) fp
+  return (stereo, b)
 
 writeAudio :: Int -> Ptr Float -> IO ()
 writeAudio bufferSize buffer = loop 0
@@ -66,9 +82,10 @@ main = do putStrLn "asdf"
           --buffer :: Ptr CFloat
           buffer <- (mallocArray bufferSize) :: IO (Ptr CFloat)
 
-          (fp, totalSize) <- gruu
-          msp ("yeahh", fp, totalSize)
-          withForeignPtr fp (writeAudio totalSize)
+          (p, totalSize) <- gruu
+          msp ("yeahh", p, totalSize)
+          --withForeignPtr fp (writeAudio totalSize)
+          writeAudio totalSize p
 
           pokeElemOff buffer 0 2.3
           pokeElemOff buffer 1 4.5
