@@ -8,7 +8,13 @@ import Foreign.Ptr
 
 foreign import ccall "foo" foo :: CInt -> IO CInt
 
+foreign import ccall "init_audio" init_audio :: IO ()
+foreign import ccall "term_audio" term_audio :: IO ()
+
 main = do putStrLn "asdf"
           i <- foo 12
           putStrLn "asdf2"
+          init_audio
+          putStrLn (show i)
+          term_audio
           putStrLn (show i)
