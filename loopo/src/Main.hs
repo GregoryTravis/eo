@@ -5,7 +5,7 @@ import Foreign.Marshal.Array (mallocArray, copyArray)
 --import Foreign.Marshal.Utils (fillBytes)
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import Foreign.Storable (peekElemOff, pokeElemOff)
+import Foreign.Storable (peekElemOff, pokeElemOff, sizeOf)
 import Sound.File.Sndfile as SF
 import qualified Sound.File.Sndfile.Buffer.StorableVector as BV
 
@@ -21,7 +21,7 @@ foreign import ccall "init_audio" init_audio :: IO ()
 foreign import ccall "write_audio" write_audio :: Ptr Float -> Int -> IO ()
 foreign import ccall "term_audio" term_audio :: IO ()
 
-bufferSize = 64
+theBufferSize = 64
 
 copyAndStereoize :: Int -> Int -> ForeignPtr Float -> IO (Ptr Float)
 copyAndStereoize 2 numFrames fptr =
@@ -67,11 +67,18 @@ gruu = do
   stereo <- copyAndStereoize (SF.channels info) (SF.frames info) fp
   return (stereo, b)
 
+writeAudioAllAtOnce :: Int -> Ptr Float -> IO ()
+writeAudioAllAtOnce bufferSize buffer = do write_audio buffer bufferSize
+
 writeAudio :: Int -> Ptr Float -> IO ()
 writeAudio bufferSize buffer = loop 0
-  where loop sofar = do write_audio buffer bufferSize
-        -- mapM_ writeIt [0..(bufferSize-1)]
-        --writeInt i = do write_audio buffer bufferSize
+  where loop sofar | sofar >= bufferSize = return ()
+                   | otherwise = let remaining = bufferSize - sofar
+                                     toWrite = min remaining theBufferSize
+                                     size = (undefined :: Float) -- Haskell, you make-a me laugh
+                                     subBufferStart = plusPtr buffer (sofar * (sizeOf size) * 2)
+                                  in do write_audio subBufferStart toWrite
+                                        loop (sofar + toWrite)
 
 
 main = do putStrLn "asdf"
@@ -80,13 +87,14 @@ main = do putStrLn "asdf"
           init_audio
           putStrLn (show i)
           --buffer :: Ptr CFloat
-          buffer <- (mallocArray bufferSize) :: IO (Ptr CFloat)
 
           (p, totalSize) <- gruu
           msp ("yeahh", p, totalSize)
           --withForeignPtr fp (writeAudio totalSize)
           writeAudio totalSize p
+          --writeAudioAllAtOnce totalSize p
 
+          buffer <- (mallocArray theBufferSize) :: IO (Ptr CFloat)
           pokeElemOff buffer 0 2.3
           pokeElemOff buffer 1 4.5
           bar buffer

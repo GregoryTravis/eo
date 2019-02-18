@@ -165,7 +165,7 @@ void init_audio(void)
 
 void write_audio(float *buffer, int num_frames)
 {
-  printf("Writing %p %d\n", buffer, num_frames);
+  // printf("Writing %p %d\n", buffer, num_frames);
   Pa_WriteStream(the_stream, (void*)buffer, num_frames);
 }
 
