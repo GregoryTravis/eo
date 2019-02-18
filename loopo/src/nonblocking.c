@@ -195,7 +195,7 @@ error:
     exit(1);
 }
 
-int _main()
+int main()
 {
     init_audio();
     float *buffer = (float*) malloc(sizeof(float) * 2 * FRAMES_PER_BUFFER);
