@@ -1,0 +1,6 @@
+gcc -o nonblocking nonblocking.c -lportaudio && ./nonblocking
+#gcc -o paex_sine paex_sine.c -lportaudio && ./paex_sine
+exit
+
+(stack build && stack exec loopo) 2>&1 | tee out
+#stack build && stack exec loopo
