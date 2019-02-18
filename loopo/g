@@ -1,4 +1,5 @@
-#gcc -o nonblocking nonblocking.c -lportaudio && ./nonblocking
+#rm -f nonblocking
+#gcc -o nonblocking src/nonblocking.c -lportaudio && ./nonblocking
 #exit
 
 (stack build && stack exec loopo) 2>&1 | tee out

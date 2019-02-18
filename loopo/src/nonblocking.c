@@ -99,13 +99,14 @@ static void StreamFinished( void* userData )
 }
 
 /*******************************************************************/
-int _main(void);
-int _main(void)
+static PaStream *the_stream = NULL;
+paTestData data;
+
+int init(void)
 {
     PaStreamParameters outputParameters;
     PaStream *stream;
     PaError err;
-    paTestData data;
     int i;
 
     printf("PortAudio Test: output sine wave. SR = %d, BufSize = %d\n", SAMPLE_RATE, FRAMES_PER_BUFFER);
@@ -148,11 +149,55 @@ int _main(void)
     err = Pa_StartStream( stream );
     if( err != paNoError ) goto error;
 
+    // Yeah yeah, I know
+    the_stream = stream;
 
-    float *buffeur = (float*) malloc(sizeof(float) * 2 * FRAMES_PER_BUFFER);
+    return err;
 
+  error:
+    Pa_Terminate();
+    fprintf( stderr, "An error occured while using the portaudio stream\n" );
+    fprintf( stderr, "Error number: %d\n", err );
+    fprintf( stderr, "Error message: %s\n", Pa_GetErrorText( err ) );
+    return err;
+}
+
+void write(float *buffer, int num_frames)
+{
+  Pa_WriteStream(the_stream, (void*)buffer, FRAMES_PER_BUFFER);
+}
+
+int term() {
+    PaError err;
+    printf("term\n");
+    //printf("Play for %d seconds.\n", NUM_SECONDS );
+    //Pa_Sleep( NUM_SECONDS * 1000 );
+
+    err = Pa_StopStream( the_stream );
+    if( err != paNoError ) goto error;
+
+    err = Pa_CloseStream( the_stream );
+    if( err != paNoError ) goto error;
+
+    Pa_Terminate();
+    printf("Test finished.\n");
+    
+    return err;
+
+error:
+    Pa_Terminate();
+    fprintf( stderr, "An error occured while using the portaudio stream\n" );
+    fprintf( stderr, "Error number: %d\n", err );
+    fprintf( stderr, "Error message: %s\n", Pa_GetErrorText( err ) );
+    return err;
+}
+
+int _main()
+{
+    init();
+    float *buffer = (float*) malloc(sizeof(float) * 2 * FRAMES_PER_BUFFER);
     while (1) {
-      float *out = buffeur;
+      float *out = buffer;
       for( int i=0; i<FRAMES_PER_BUFFER; i++ )
       {
           *out++ = data.sine[data.left_phase];  /* left */
@@ -163,30 +208,10 @@ int _main(void)
           if( data.right_phase >= TABLE_SIZE ) data.right_phase -= TABLE_SIZE;
           printf("yeah %d\n", FRAMES_PER_BUFFER);
       }
-      Pa_WriteStream(stream, (void*)buffeur, FRAMES_PER_BUFFER);
+      write (buffer, FRAMES_PER_BUFFER);
     }
-
-
-
-    printf("Play for %d seconds.\n", NUM_SECONDS );
-    Pa_Sleep( NUM_SECONDS * 1000 );
-
-    err = Pa_StopStream( stream );
-    if( err != paNoError ) goto error;
-
-    err = Pa_CloseStream( stream );
-    if( err != paNoError ) goto error;
-
-    Pa_Terminate();
-    printf("Test finished.\n");
-    
-    return err;
-error:
-    Pa_Terminate();
-    fprintf( stderr, "An error occured while using the portaudio stream\n" );
-    fprintf( stderr, "Error number: %d\n", err );
-    fprintf( stderr, "Error message: %s\n", Pa_GetErrorText( err ) );
-    return err;
+    // Not reached
+    term();
 }
 
 int foo(int x) {
