@@ -46,6 +46,21 @@ omgResample src srcNumFrames destNumFrames = do
         toF :: Int -> Int
         toF i = i -- * (sizeOf (undefined :: Float))
 
+{-
+omgResample_ :: BV Float -> Int -> IO (BV Float)
+omgResample_ :: Ptr Float -> Int -> Int -> IO (Ptr Float)
+omgResample_ src destNumFrames = do
+  dest = BV.new (destNumFrames * 2) :: BV Float
+  dest <- (mallocArray (destNumFrames * 2)) :: IO (Ptr Float)
+  mapM_ (resamp src dest) [0..(srcNumFrames-1)]
+  return dest
+  where srcNumFrames = (BV.length src) `div` 2
+        resamp :: BV Float -> BV Float -> Int -> IO ()
+        resamp src dest srcI = let destI = floor $ (fromIntegral srcI) * ((fromIntegral destNumFrames) / (fromIntegral srcNumFrames))
+                                in do BV.write dest (destI*2) (src ! (srcI*2))
+                                      BV.write dest (destI*2+1) (src ! (srcI*2+1))
+-}
+
 copyAndStereoize :: Int -> Int -> ForeignPtr Float -> IO (Ptr Float)
 copyAndStereoize 2 numFrames fptr =
   -- Just copy
