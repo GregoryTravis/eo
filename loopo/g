@@ -5,14 +5,8 @@
 #(stack build && . input | (stack exec loopo loop*.wav)) 2>&1 | tee out
 loops=~/proj/beetz/jbprofile/loop1?.wav
 loops=loop*.wav
+loops=loop1.wav
 echo $loops
-(stack build && receivemidi dev "US-122 MKII MIDI" | (stack exec loopo $loops)) 2>&1 | tee out
+#(stack build && receivemidi dev "US-122 MKII MIDI" | (stack exec loopo $loops)) 2>&1 | tee out
+(stack build && . input | (stack exec loopo $loops)) 2>&1 | tee out
 #stack build && stack exec loopo
-
-
-rm -f eo eo.hi
-ghc -fprof-auto -fprof-cafs -prof -o eo eo.hs
-echo ok
-. input | (./eo +RTS -xc) 2>&1
-#receivemidi dev "US-122 MKII MIDI" | ./eo +RTS -xc | sendmidi dev "US-122 MKII MIDI" --
-#./eo

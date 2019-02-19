@@ -1,12 +1,12 @@
-echo channel 1 note-on C4 127
+echo channel 1 note-on C2 127
 sleep 0.5
-echo channel 1 note-on C4 127
-echo channel 1 note-on D4 127
-echo channel 1 note-on E4 127
-echo channel 1 note-on D4 127
+echo channel 1 note-on C2 127
+echo channel 1 note-on D2 127
+echo channel 1 note-on E2 127
+echo channel 1 note-on D2 127
 sleep 0.5
-echo channel 1 note-off C4 127
+echo channel 1 note-on C2 127
 sleep 0.5
-echo channel 1 note-off D4 127
+echo channel 1 note-on D2 127
 sleep 0.5
 cat
