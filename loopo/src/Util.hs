@@ -47,7 +47,13 @@ msp x = putStrLn $ sp x
 fromLeftReal (Left a) = a
 
 massert :: Bool -> IO ()
-massert b = return $ assert b ()
+--massert b = return $ assert b ()
+massert b = do putStrLn (show ("yy", b))
+               let _ = assert b ()
+               -- And again in case they're turned off
+               if not b
+                 then throw $ AssertionFailed "Assertion Failed"
+                 else return ()
 
 assertM :: Show b => b -> Bool -> a -> a
 assertM m b a

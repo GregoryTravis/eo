@@ -3,13 +3,15 @@ import Control.Concurrent (threadDelay)
 import qualified Data.Map as Map
 import Data.Maybe
 import qualified Data.Set as S
+--import qualified Data.Vector as V
+import qualified Data.StorableVector as SV
 import Data.StorableVector.Base as SVB
 import Foreign.C
 import Foreign.Marshal.Array (mallocArray, copyArray)
 --import Foreign.Marshal.Utils (fillBytes)
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import Foreign.Storable (peekElemOff, pokeElemOff, sizeOf)
+import Foreign.Storable (peekElemOff, pokeElemOff, sizeOf, Storable)
 import Sound.File.Sndfile as SF
 import qualified Sound.File.Sndfile.Buffer.StorableVector as BV
 import System.Environment (getArgs)
@@ -79,6 +81,13 @@ copyAndStereoize 1 numFrames fptr =
                                   pokeElemOff dest (offset*2) sample
                                   pokeElemOff dest (offset*2 + 1) sample
 
+-- Concatenate enough copies of the vector to reach the standard length; must
+-- be an integral number of copies.
+maybeLoop :: Storable a => SV.Vector a -> SV.Vector a
+maybeLoop v =
+  let (numCopies, 0) = divMod desiredLengthFrames (SV.length v)
+   in SV.concat (replicate numCopies v)
+
 gruu :: String -> IO (Ptr Float, Int)
 gruu filename = do
   -- open the file that we want to know about
@@ -89,7 +98,10 @@ gruu filename = do
 
   --bruf :: BV.Buffer CFloat
   (info, Just (bruf :: BV.Buffer Float)) <- SF.readFile filename
-  let v = BV.fromBuffer bruf
+  let v' = BV.fromBuffer bruf
+  msp ("qqq before", SV.length v')
+  let v = maybeLoop $ v'
+  msp ("qqq after", SV.length v)
   let (fp, a, b) = SVB.toForeignPtr v
   msp (filename, fp, a, b)
   putStrLn $ assert (a==0) (show a)
@@ -195,10 +207,16 @@ getLength filename = do
   return $ assert (take 2 ws == ["Samples", "read:"])
     ((read $ ws !! 2) :: Integer)
 
+-- Double the speed ratio until it's >= 0.5
+notTooSlow x
+  | 0 < x && x < 0.5 = notTooSlow (x * 2)
+  | otherwise = x
+
 resample src = do
   srcLengthFrames <- getLength src
   let dest = "_" ++ src
-  let speedRatio = (fromIntegral srcLengthFrames) / (fromIntegral desiredLengthFrames)
+  let speedRatio = notTooSlow $ (fromIntegral srcLengthFrames) / (fromIntegral desiredLengthFrames)
+  msp ("rah", src, speedRatio)
   callProcess "/usr/local/bin/sox" [src, dest, "speed", show speedRatio]
   return dest
 
@@ -225,7 +243,10 @@ main = do hSetBuffering stdout NoBuffering
           x0 <- mapM gruu resampled :: IO [(Ptr Float, Int)]
           let x1 = unzip x0 :: ([Ptr Float], [Int])
           let (loops, lengths) = x1
+          msp "whu"
           msp lengths
+          msp $ map (desiredLengthFrames ==) lengths
+          msp $ all (desiredLengthFrames ==) lengths
           massert $ all (desiredLengthFrames ==) lengths
           --(p, totalSize) <- gruu
           --msp ("yeahh", p, totalSize)

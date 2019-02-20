@@ -38,6 +38,7 @@ executable loopo
                        process,
                        storablevector,
                        text,
+                       vector,
                        pa
                        --vector,
                        --hsndfile,
