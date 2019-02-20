@@ -31,6 +31,7 @@ foreign import ccall "term_audio" term_audio :: IO ()
 
 theBufferSize = 64
 desiredLengthFrames = 44100 * 2
+lowKey = 36
 
 -- omg because I can't believe writing this is easier than finding one
 omgResample :: Ptr Float -> Int -> Int -> IO (Ptr Float)
@@ -153,7 +154,7 @@ processEvents downKeys = do
 getActiveSamples :: [Ptr Float] -> S.Set Int -> [Ptr Float]
 getActiveSamples loops active =
   map (\(_, loop) -> loop) $ filter (\(i, loop) -> isActive i) (zip [0..] loops)
-  where isActive i = S.member (i + 36) active
+  where isActive i = S.member (i + lowKey) active
 
 -- mixBuffers resampled buffer newDownKeys
 mixBuffers :: [Ptr Float] -> Ptr Float -> Int -> S.Set Int -> IO ()
@@ -201,6 +202,9 @@ resample src = do
   callProcess "/usr/local/bin/sox" [src, dest, "speed", show speedRatio]
   return dest
 
+pressDiagram numSamples keys = "[" ++ map onOff [0..numSamples-1] ++ "]"
+  where onOff i = if (S.member (i+lowKey) keys) then '#' else '.'
+
 main = do hSetBuffering stdout NoBuffering
           putStrLn "asdf"
           i <- foo 12
@@ -221,7 +225,7 @@ main = do hSetBuffering stdout NoBuffering
           x0 <- mapM gruu resampled :: IO [(Ptr Float, Int)]
           let x1 = unzip x0 :: ([Ptr Float], [Int])
           let (loops, lengths) = x1
-          massert True
+          msp lengths
           massert $ all (desiredLengthFrames ==) lengths
           --(p, totalSize) <- gruu
           --msp ("yeahh", p, totalSize)
@@ -235,7 +239,8 @@ main = do hSetBuffering stdout NoBuffering
 
           let loop downKeys curPos = do
                 newDownKeys <- processEvents downKeys
-                if newDownKeys /= downKeys then msp newDownKeys else return ()
+                --if newDownKeys /= downKeys then msp newDownKeys else return ()
+                if newDownKeys /= downKeys then putStrLn (pressDiagram (length loops) newDownKeys) else return ()
                 --msp ("nDK", newDownKeys)
                 mixBuffers loops buffer curPos newDownKeys
                 --msp ("writey", curPos)
