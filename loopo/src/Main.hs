@@ -15,6 +15,7 @@ import qualified Sound.File.Sndfile.Buffer.StorableVector as BV
 import System.Environment (getArgs)
 import System.Exit
 import System.IO
+import System.Process
 
 import Util
 
@@ -29,7 +30,7 @@ foreign import ccall "write_audio" write_audio :: Ptr Float -> Int -> IO ()
 foreign import ccall "term_audio" term_audio :: IO ()
 
 theBufferSize = 64
-desiredLengthFrames = 44100 * 4
+desiredLengthFrames = 44100 * 2
 
 -- omg because I can't believe writing this is easier than finding one
 omgResample :: Ptr Float -> Int -> Int -> IO (Ptr Float)
@@ -170,8 +171,8 @@ mixBuffers loops buffer curPos downKeys =
                                 --msp i
                                 leftSamples <- mapM (getSample (i*2)) loops
                                 rightSamples <- mapM (getSample (i*2+1)) loops
-                                let leftSample = avg leftSamples
-                                let rightSample = avg rightSamples
+                                let leftSample = sum leftSamples
+                                let rightSample = sum rightSamples
                                 --msp leftSamples
                                 --msp leftSample
                                 let di = i - curPos
@@ -183,6 +184,22 @@ mixBuffers loops buffer curPos downKeys =
                  avg samples = (sum samples) / fromIntegral (length samples)
    --in do write_audio subBufferStart toWrite
          --return $ sofar + toWrite
+
+getLength filename = do
+  (ExitSuccess, _, stderr) <- readProcessWithExitCode "/usr/local/bin/sox" [filename, "-n", "stat"] ""
+  msp "ughgh"
+  msp stderr
+  msp "ughgh"
+  let ws = eesp "ugh" $ words stderr
+  return $ assert (take 2 ws == ["Samples", "read:"])
+    ((read $ ws !! 2) :: Integer)
+
+resample src = do
+  srcLengthFrames <- getLength src
+  let dest = "_" ++ src
+  let speedRatio = (fromIntegral srcLengthFrames) / (fromIntegral desiredLengthFrames)
+  callProcess "/usr/local/bin/sox" [src, dest, "speed", show speedRatio]
+  return dest
 
 main = do hSetBuffering stdout NoBuffering
           putStrLn "asdf"
@@ -198,11 +215,18 @@ main = do hSetBuffering stdout NoBuffering
           putStrLn (show i)
           --buffer :: Ptr CFloat
 
-          loops <- mapM gruu args
+          resampled <- mapM resample args
+          msp resampled
+          --(loops, lengths) <- unzip $ mapM gruu resampled
+          x0 <- mapM gruu resampled :: IO [(Ptr Float, Int)]
+          let x1 = unzip x0 :: ([Ptr Float], [Int])
+          let (loops, lengths) = x1
+          massert True
+          massert $ all (desiredLengthFrames ==) lengths
           --(p, totalSize) <- gruu
           --msp ("yeahh", p, totalSize)
           --withForeignPtr fp (writeAudio totalSize)
-          resampled <- mapM (\(p, totalSize) -> omgResample p totalSize desiredLengthFrames) loops
+          --resampled <- mapM (\(p, totalSize) -> omgResample p totalSize desiredLengthFrames) loops
           --mapM (\(p, totalSize) -> writeAudio totalSize p) loops
           --mapM (\p -> writeAudio desiredLengthFrames p) resampled
           --writeAudioAllAtOnce totalSize p
@@ -213,7 +237,7 @@ main = do hSetBuffering stdout NoBuffering
                 newDownKeys <- processEvents downKeys
                 if newDownKeys /= downKeys then msp newDownKeys else return ()
                 --msp ("nDK", newDownKeys)
-                mixBuffers resampled buffer curPos newDownKeys
+                mixBuffers loops buffer curPos newDownKeys
                 --msp ("writey", curPos)
                 writeAudioAllAtOnce theBufferSize buffer
                 let newCurPos = if curPos + theBufferSize >= desiredLengthFrames then 0 else curPos + theBufferSize

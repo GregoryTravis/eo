@@ -35,6 +35,7 @@ executable loopo
                        hsndfile-storablevector >= 0.5.2,
                        portaudio >= 0.2.4,
                        pretty-simple,
+                       process,
                        storablevector,
                        text,
                        pa

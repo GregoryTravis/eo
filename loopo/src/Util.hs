@@ -1,6 +1,7 @@
 module Util
 ( assert
 , assertM
+, massert
 , esp
 , eesp
 , fesp
@@ -44,6 +45,9 @@ msp x = putStrLn $ sp x
 
 -- Really surprised this doesn't exist
 fromLeftReal (Left a) = a
+
+massert :: Bool -> IO ()
+massert b = return $ assert b ()
 
 assertM :: Show b => b -> Bool -> a -> a
 assertM m b a
