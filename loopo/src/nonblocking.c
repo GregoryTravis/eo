@@ -217,14 +217,3 @@ int mmain()
     // Not reached
     term_audio();
 }
-
-int foo(int x)
-{
-  printf("foo here\n");
-  return x * 2;
-}
-
-void bar(float fs[])
-{
-  printf("bar here %f %f\n", fs[0], fs[1]);
-}

@@ -21,9 +21,6 @@ import System.Process
 
 import Util
 
-foreign import ccall "foo" foo :: CInt -> IO CInt
-foreign import ccall "bar" bar :: Ptr CFloat -> IO ()
-
 foreign import ccall "init_audio" init_audio :: IO ()
 foreign import ccall "write_audio" write_audio :: Ptr Float -> Int -> IO ()
 foreign import ccall "term_audio" term_audio :: IO ()
