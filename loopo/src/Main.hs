@@ -32,7 +32,7 @@ foreign import ccall "write_audio" write_audio :: Ptr Float -> Int -> IO ()
 foreign import ccall "term_audio" term_audio :: IO ()
 
 theBufferSize = 64
-desiredLengthFrames = 175683 -- 44100 * 2
+desiredLengthFrames = 44100 * 2
 lowKey = 36
 
 copyAndStereoize :: Int -> Int -> ForeignPtr Float -> IO (Ptr Float)
@@ -273,7 +273,7 @@ main = do hSetBuffering stdout NoBuffering
                 --msp ("nDK", newDownKeys)
                 --mixBuffers loops buffer curPos newDownKeys
                 --time "old" $ mixBuffers loops buffer curPos newDownKeys
-                buffer' <- (time "new" $ return $ mixBuffers' loopsV curPos newDownKeys) :: IO (Vector Float)
+                let buffer' = mixBuffers' loopsV curPos newDownKeys
                 --let buffer' = mixBuffers' loopsV curPos newDownKeys
                 --msp ("writey", curPos)
 
