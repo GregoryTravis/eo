@@ -48,34 +48,12 @@ maybeLoop v =
 
 gruu :: String -> IO (Vector Float)
 gruu filename = do
-  -- open the file that we want to know about
-  --f <- SF.openFile "loop2.wav" SF.ReadMode SF.defaultInfo
-
-  -- read the information about the file out
-  --let info = SF.hInfo f
-
-  --bruf :: BV.Buffer CFloat
-  (info, Just (bruf :: BV.Buffer Float)) <- SF.readFile filename
-  let v' = BV.fromBuffer bruf
-  msp ("qqq before", SV.length v')
-  let v = maybeLoop $ v'
-  msp ("qqq after", SV.length v)
-
-  -- display information about the file
-  putStrLn $ "format:      " ++ (show $ SF.format info)
-  putStrLn $ "sample rate: " ++ (show $ SF.samplerate info)
-  putStrLn $ "channels:    " ++ (show $ SF.channels info)
-  putStrLn $ "frames:      " ++ (show $ SF.frames info)
-
-  --assertM "huhh" (a == 0) ()
-  let stereoV = copyAndStereoize (SF.channels info) v
-  return stereoV
+  (info, Just (buffer :: BV.Buffer Float)) <- SF.readFile filename
+  msp info
+  return $ copyAndStereoize (SF.channels info) (maybeLoop (BV.fromBuffer buffer))
 
 writeAudioAllAtOnce :: Vector Float -> IO ()
 writeAudioAllAtOnce v =
-  --let (fp, start, length) = SVB.toForeignPtr v
-      --aFloat = (undefined :: Float)
-   --in withForeignPtr fp (\ptr -> writeAudioAllAtOnce length (plusPtr ptr (start * 2 * (sizeOf aFloat))))
   let (fp, 0, length) = SVB.toForeignPtr v
    in withForeignPtr fp (\ptr -> write_audio ptr (length `div` 2))
 
@@ -130,10 +108,7 @@ getLength filename = do
   --msp ("mspa", a)
   --msp stderr'
   (ExitSuccess, _, stderr) <- readProcessWithExitCode "/usr/local/bin/sox" [filename, "-n", "stat"] ""
-  msp "ughgh"
-  msp stderr
-  msp "ughgh"
-  let ws = eesp "ugh" $ words stderr
+  let ws = words stderr
   return $ assert (take 2 ws == ["Samples", "read:"])
     ((read $ ws !! 2) :: Integer)
 
@@ -146,7 +121,6 @@ resample src = do
   srcLengthFrames <- getLength src
   let dest = "_" ++ src
   let speedRatio = notTooSlow $ (fromIntegral srcLengthFrames) / (fromIntegral desiredLengthFrames)
-  msp ("rah", src, speedRatio)
   callProcess "/usr/local/bin/sox" [src, dest, "speed", show speedRatio]
   return dest
 
@@ -154,20 +128,14 @@ pressDiagram numSamples keys = "[" ++ map onOff [0..numSamples-1] ++ "]"
   where onOff i = if (S.member (i+lowKey) keys) then '#' else '.'
 
 main = do hSetBuffering stdout NoBuffering
-          putStrLn "asdf"
-          i <- foo 12
-          putStrLn "asdf2"
           args <- getArgs
-          msp "args"
           msp args
 
           let downKeys = S.empty
 
           init_audio
-          putStrLn (show i)
 
           resampled <- mapM resample args
-          msp resampled
           loopsV <- mapM gruu resampled
           let lengths = map SV.length loopsV
           massert $ all ((desiredLengthFrames * 2) ==) lengths
@@ -187,4 +155,3 @@ main = do hSetBuffering stdout NoBuffering
           loop downKeys 0
 
           term_audio
-          putStrLn (show i)
