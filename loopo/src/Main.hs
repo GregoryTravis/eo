@@ -71,16 +71,13 @@ gruu filename = do
   let stereoV = copyAndStereoize (SF.channels info) v
   return stereoV
 
-writeAudioAllAtOnce :: Int -> Ptr Float -> IO ()
-writeAudioAllAtOnce bufferSize buffer = do write_audio buffer bufferSize
-
 writeAudioAllAtOnce' :: Vector Float -> IO ()
 writeAudioAllAtOnce' v =
   --let (fp, start, length) = SVB.toForeignPtr v
       --aFloat = (undefined :: Float)
    --in withForeignPtr fp (\ptr -> writeAudioAllAtOnce length (plusPtr ptr (start * 2 * (sizeOf aFloat))))
   let (fp, 0, length) = SVB.toForeignPtr v
-   in withForeignPtr fp (\ptr -> writeAudioAllAtOnce (length `div` 2) ptr)
+   in withForeignPtr fp (\ptr -> write_audio ptr (length `div` 2))
 
 atoi s = read s :: Int
 noteOffsets = Map.fromList [('A', 9), ('B', 11), ('C', 0), ('D', 2), ('E', 4), ('F', 5), ('G', 7)]
