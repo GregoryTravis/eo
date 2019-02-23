@@ -11,7 +11,7 @@ import Foreign.Marshal.Array (mallocArray, copyArray)
 --import Foreign.Marshal.Utils (fillBytes)
 import Foreign.ForeignPtr
 import Foreign.Ptr
-import Foreign.Storable (peekElemOff, pokeElemOff, sizeOf, Storable)
+import Foreign.Storable (Storable)
 import Sound.File.Sndfile as SF
 import qualified Sound.File.Sndfile.Buffer.StorableVector as BV
 import System.Environment (getArgs)
@@ -20,9 +20,6 @@ import System.IO
 import System.Process
 
 import Util
-
---foreign import ccall "fastestTextureVStrip" fastestTextureVStrip :: Ptr Word32 -> Ptr Word32 -> CInt -> CInt -> CInt -> CInt -> CInt -> CInt -> CDouble -> CDouble -> IO ()
---void fastestTextureVStrip(int32_t *start, int32_t *texPtr, int texWid, int texHt, int dPtr, int tx, int cy0, int cy1, double fty0, double dfty);
 
 foreign import ccall "foo" foo :: CInt -> IO CInt
 foreign import ccall "bar" bar :: Ptr CFloat -> IO ()
@@ -63,12 +60,6 @@ gruu filename = do
   msp ("qqq before", SV.length v')
   let v = maybeLoop $ v'
   msp ("qqq after", SV.length v)
-  --let (fp, a, b) = SVB.toForeignPtr v
-  --msp (filename, fp, a, b)
-  --putStrLn $ assert (a==0) (show a)
-
-  -- close the file
-  --SF.hClose f
 
   -- display information about the file
   putStrLn $ "format:      " ++ (show $ SF.format info)
@@ -80,10 +71,6 @@ gruu filename = do
   let stereoV = copyAndStereoize (SF.channels info) v
   return stereoV
 
-ptrToVector length ptr = do
-  fp <- newForeignPtr_ ptr
-  return $ SVB.fromForeignPtr fp length
-
 writeAudioAllAtOnce :: Int -> Ptr Float -> IO ()
 writeAudioAllAtOnce bufferSize buffer = do write_audio buffer bufferSize
 
@@ -94,24 +81,6 @@ writeAudioAllAtOnce' v =
    --in withForeignPtr fp (\ptr -> writeAudioAllAtOnce length (plusPtr ptr (start * 2 * (sizeOf aFloat))))
   let (fp, 0, length) = SVB.toForeignPtr v
    in withForeignPtr fp (\ptr -> writeAudioAllAtOnce (length `div` 2) ptr)
-
-writeAudioAllAtOnce'' :: Int -> Ptr Float -> IO ()
-writeAudioAllAtOnce'' length ptr = do
-  v <- ptrToVector length ptr
-  writeAudioAllAtOnce' v
-  --fp <- newForeignPtr_ ptr
-  --let v = SVB.fromForeignPtr fp length
-   --in writeAudioAllAtOnce' v
-
-writeAudio :: Int -> Ptr Float -> IO ()
-writeAudio bufferSize buffer = loop 0
-  where loop sofar | sofar >= bufferSize = return ()
-                   | otherwise = let remaining = bufferSize - sofar
-                                     toWrite = min remaining theBufferSize
-                                     size = (undefined :: Float) -- Haskell, you make-a me laugh
-                                     subBufferStart = plusPtr buffer (sofar * (sizeOf size) * 2)
-                                  in do write_audio subBufferStart toWrite
-                                        loop (sofar + toWrite)
 
 atoi s = read s :: Int
 noteOffsets = Map.fromList [('A', 9), ('B', 11), ('C', 0), ('D', 2), ('E', 4), ('F', 5), ('G', 7)]
@@ -150,47 +119,13 @@ getActiveSamples loops active =
   where isActive i = S.member (i + lowKey) active
 
 -- mixBuffers resampled buffer newDownKeys
-mixBuffers :: [Ptr Float] -> Ptr Float -> Int -> S.Set Int -> IO ()
-mixBuffers loops buffer curPos downKeys =
-  let remaining = desiredLengthFrames - curPos
-      toWrite = min remaining theBufferSize
-      --size = (undefined :: Float) -- Haskell, you make-a me laugh
-      --subBufferStart = plusPtr buffer (sofar * (sizeOf size) * 2)
-      activeLoops = getActiveSamples loops downKeys
-   in do mapM_ (doIt activeLoops buffer) [curPos..(curPos+toWrite-1)]
-         return ()
-   where doIt :: [Ptr Float] -> Ptr Float -> Int -> IO ()
-         doIt loops dest i = do 
-                                --msp "hey"
-                                --msp i
-                                leftSamples <- mapM (getSample (i*2)) loops
-                                rightSamples <- mapM (getSample (i*2+1)) loops
-                                let leftSample = sum leftSamples
-                                let rightSample = sum rightSamples
-                                --msp leftSamples
-                                --msp leftSample
-                                let di = i - curPos
-                                pokeElemOff dest (di*2) leftSample
-                                pokeElemOff dest (di*2+1) rightSample
-           where getSample fi src = do peekElemOff src fi
-                 avg :: [Float] -> Float
-                 avg [] = 0
-                 avg samples = (sum samples) / fromIntegral (length samples)
-
 mixBuffers' :: [Vector Float] -> Int -> S.Set Int -> Vector Float
 mixBuffers' loops curPos downKeys =
   let remaining = desiredLengthFrames - curPos
       toWrite = min remaining theBufferSize
-      --size = (undefined :: Float) -- Haskell, you make-a me laugh
-      --subBufferStart = plusPtr buffer (sofar * (sizeOf size) * 2)
       activeLoops = getActiveSamples loops downKeys
-      --activeSubLoops = map (\loop -> take toWrite (drop curPos loop)) activeLoops
-      --activeLoopsLists = map SV.unpack activeLoops
-      --sublists = map (\loop -> take toWrite (drop curPos loop))
    in SV.sample (toWrite * 2) (mixSamples activeLoops)
-   --in SV.take toWrite (SV.drop curPos (loops !! 0))
   where mixSamples :: [Vector Float] -> Int -> Float
-        --mixSamples loops i = sum $ map (\loop -> (SV.index loop (eesp (show (curPos, i, ((curPos * 2) + i))) ((curPos * 2) + i)))) loops
         mixSamples loops i = sum $ map (\loop -> (SV.index loop ((curPos * 2) + i))) loops
 
 getLength filename = do
@@ -233,62 +168,26 @@ main = do hSetBuffering stdout NoBuffering
 
           init_audio
           putStrLn (show i)
-          --buffer :: Ptr CFloat
 
           resampled <- mapM resample args
           msp resampled
-          --(loops, lengths) <- unzip $ mapM gruu resampled
           loopsV <- mapM gruu resampled
           let lengths = map SV.length loopsV
-          msp "whu"
-          msp lengths
-          msp $ map ((desiredLengthFrames * 2) ==) lengths
-          msp $ all ((desiredLengthFrames * 2) ==) lengths
           massert $ all ((desiredLengthFrames * 2) ==) lengths
-          --loopsV <- mapM (ptrToVector (desiredLengthFrames * 2)) loops
-          --(p, totalSize) <- gruu
-          --msp ("yeahh", p, totalSize)
-          --withForeignPtr fp (writeAudio totalSize)
-          --resampled <- mapM (\(p, totalSize) -> omgResample p totalSize desiredLengthFrames) loops
-          --mapM (\(p, totalSize) -> writeAudio totalSize p) loops
-          --mapM (\p -> writeAudio desiredLengthFrames p) resampled
-          --writeAudioAllAtOnce totalSize p
-
-          buffer <- (mallocArray (theBufferSize * 2)) :: IO (Ptr Float)
 
           let loop downKeys curPos = do
                 newDownKeys <- processEvents downKeys
                 --if newDownKeys /= downKeys then msp newDownKeys else return ()
                 if newDownKeys /= downKeys then putStrLn (pressDiagram (length loopsV) newDownKeys) else return ()
                 --msp ("nDK", newDownKeys)
-                --mixBuffers loops buffer curPos newDownKeys
-                --time "old" $ mixBuffers loops buffer curPos newDownKeys
                 let buffer' = mixBuffers' loopsV curPos newDownKeys
-                --let buffer' = mixBuffers' loopsV curPos newDownKeys
-                --msp ("writey", curPos)
-
-                --bufpo <- (ptrToVector (theBufferSize * 2) buffer) :: IO (Vector Float)
-                --msp ("glee", SV.length buffer', SV.length bufpo, bufpo == buffer')
-
-                --msp ("wheesh", bufpo == buffer')
-                --msp ("old", SV.unpack bufpo)
-                --msp ("new", SV.unpack buffer')
-
-                --writeAudioAllAtOnce theBufferSize buffer
-                --writeAudioAllAtOnce'' theBufferSize buffer
                 writeAudioAllAtOnce' buffer'
-                --writeAudioAllAtOnce' bufpo
 
                 let newCurPos = if curPos + theBufferSize >= desiredLengthFrames then 0 else curPos + theBufferSize
                 --threadDelay 100000
                 loop newDownKeys newCurPos
 
           loop downKeys 0
-
-          --buffer <- (mallocArray theBufferSize) :: IO (Ptr CFloat)
-          --pokeElemOff buffer 0 2.3
-          --pokeElemOff buffer 1 4.5
-          --bar buffer
 
           term_audio
           putStrLn (show i)
