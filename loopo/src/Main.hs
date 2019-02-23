@@ -32,7 +32,7 @@ foreign import ccall "write_audio" write_audio :: Ptr Float -> Int -> IO ()
 foreign import ccall "term_audio" term_audio :: IO ()
 
 theBufferSize = 64
-desiredLengthFrames = 44100 * 2
+desiredLengthFrames = 175683 -- 44100 * 2
 lowKey = 36
 
 copyAndStereoize :: Int -> Int -> ForeignPtr Float -> IO (Ptr Float)
@@ -89,8 +89,28 @@ gruu filename = do
   stereo <- copyAndStereoize (SF.channels info) (SF.frames info) fp
   return (stereo, b)
 
+ptrToVector length ptr = do
+  fp <- newForeignPtr_ ptr
+  return $ SVB.fromForeignPtr fp length
+
 writeAudioAllAtOnce :: Int -> Ptr Float -> IO ()
 writeAudioAllAtOnce bufferSize buffer = do write_audio buffer bufferSize
+
+writeAudioAllAtOnce' :: Vector Float -> IO ()
+writeAudioAllAtOnce' v =
+  --let (fp, start, length) = SVB.toForeignPtr v
+      --aFloat = (undefined :: Float)
+   --in withForeignPtr fp (\ptr -> writeAudioAllAtOnce length (plusPtr ptr (start * 2 * (sizeOf aFloat))))
+  let (fp, 0, length) = SVB.toForeignPtr v
+   in withForeignPtr fp (\ptr -> writeAudioAllAtOnce (length `div` 2) ptr)
+
+writeAudioAllAtOnce'' :: Int -> Ptr Float -> IO ()
+writeAudioAllAtOnce'' length ptr = do
+  v <- ptrToVector length ptr
+  writeAudioAllAtOnce' v
+  --fp <- newForeignPtr_ ptr
+  --let v = SVB.fromForeignPtr fp length
+   --in writeAudioAllAtOnce' v
 
 writeAudio :: Int -> Ptr Float -> IO ()
 writeAudio bufferSize buffer = loop 0
@@ -133,7 +153,7 @@ processEvents downKeys = do
                    processEvents newDownKeys
            else return downKeys
 
-getActiveSamples :: [Ptr Float] -> S.Set Int -> [Ptr Float]
+getActiveSamples :: [a] -> S.Set Int -> [a]
 getActiveSamples loops active =
   map (\(_, loop) -> loop) $ filter (\(i, loop) -> isActive i) (zip [0..] loops)
   where isActive i = S.member (i + lowKey) active
@@ -165,10 +185,27 @@ mixBuffers loops buffer curPos downKeys =
                  avg :: [Float] -> Float
                  avg [] = 0
                  avg samples = (sum samples) / fromIntegral (length samples)
-   --in do write_audio subBufferStart toWrite
-         --return $ sofar + toWrite
+
+mixBuffers' :: [Vector Float] -> Int -> S.Set Int -> Vector Float
+mixBuffers' loops curPos downKeys =
+  let remaining = desiredLengthFrames - curPos
+      toWrite = min remaining theBufferSize
+      --size = (undefined :: Float) -- Haskell, you make-a me laugh
+      --subBufferStart = plusPtr buffer (sofar * (sizeOf size) * 2)
+      activeLoops = getActiveSamples loops downKeys
+      --activeSubLoops = map (\loop -> take toWrite (drop curPos loop)) activeLoops
+      --activeLoopsLists = map SV.unpack activeLoops
+      --sublists = map (\loop -> take toWrite (drop curPos loop))
+   in SV.sample (toWrite * 2) (mixSamples activeLoops)
+   --in SV.take toWrite (SV.drop curPos (loops !! 0))
+  where mixSamples :: [Vector Float] -> Int -> Float
+        --mixSamples loops i = sum $ map (\loop -> (SV.index loop (eesp (show (curPos, i, ((curPos * 2) + i))) ((curPos * 2) + i)))) loops
+        mixSamples loops i = sum $ map (\loop -> (SV.index loop ((curPos * 2) + i))) loops
 
 getLength filename = do
+  --(a, _, stderr') <- readProcessWithExitCode "/usr/local/bin/sox" [filename, "-n", "stat"] ""
+  --msp ("mspa", a)
+  --msp stderr'
   (ExitSuccess, _, stderr) <- readProcessWithExitCode "/usr/local/bin/sox" [filename, "-n", "stat"] ""
   msp "ughgh"
   msp stderr
@@ -218,6 +255,7 @@ main = do hSetBuffering stdout NoBuffering
           msp $ map (desiredLengthFrames ==) lengths
           msp $ all (desiredLengthFrames ==) lengths
           massert $ all (desiredLengthFrames ==) lengths
+          loopsV <- mapM (ptrToVector (desiredLengthFrames * 2)) loops
           --(p, totalSize) <- gruu
           --msp ("yeahh", p, totalSize)
           --withForeignPtr fp (writeAudio totalSize)
@@ -233,9 +271,24 @@ main = do hSetBuffering stdout NoBuffering
                 --if newDownKeys /= downKeys then msp newDownKeys else return ()
                 if newDownKeys /= downKeys then putStrLn (pressDiagram (length loops) newDownKeys) else return ()
                 --msp ("nDK", newDownKeys)
-                mixBuffers loops buffer curPos newDownKeys
+                --mixBuffers loops buffer curPos newDownKeys
+                --time "old" $ mixBuffers loops buffer curPos newDownKeys
+                buffer' <- (time "new" $ return $ mixBuffers' loopsV curPos newDownKeys) :: IO (Vector Float)
+                --let buffer' = mixBuffers' loopsV curPos newDownKeys
                 --msp ("writey", curPos)
-                writeAudioAllAtOnce theBufferSize buffer
+
+                --bufpo <- (ptrToVector (theBufferSize * 2) buffer) :: IO (Vector Float)
+                --msp ("glee", SV.length buffer', SV.length bufpo, bufpo == buffer')
+
+                --msp ("wheesh", bufpo == buffer')
+                --msp ("old", SV.unpack bufpo)
+                --msp ("new", SV.unpack buffer')
+
+                --writeAudioAllAtOnce theBufferSize buffer
+                --writeAudioAllAtOnce'' theBufferSize buffer
+                writeAudioAllAtOnce' buffer'
+                --writeAudioAllAtOnce' bufpo
+
                 let newCurPos = if curPos + theBufferSize >= desiredLengthFrames then 0 else curPos + theBufferSize
                 --threadDelay 100000
                 loop newDownKeys newCurPos

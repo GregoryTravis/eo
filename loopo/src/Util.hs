@@ -12,14 +12,18 @@ module Util
 , fromLeftReal
 , mappily
 , mcompose
+, time
 ) where
 
+import Control.Exception
 import Control.Exception.Base
 import Data.Either
 import Data.Text (unpack)
 import Data.Text.Lazy (toStrict)
+import System.CPUTime
 import System.IO.Unsafe
 import Text.Pretty.Simple (pShow, pShowNoColor)
+import Text.Printf
 
 esp a = unsafePerformIO $ do
   putStrLn $ show $ a
@@ -73,3 +77,14 @@ mappily f Nothing = Nothing
 mcompose :: (b -> Maybe c) -> (a -> Maybe b) -> (a -> Maybe c)
 mcompose f g x = case g x of Just y -> f y
                              Nothing -> Nothing
+
+-- Taken from https://wiki.haskell.org/Timing_computations
+time :: String -> IO t -> IO t
+time s a = do
+    start <- getCPUTime
+    v <- a
+    end   <- getCPUTime
+    let diff = (fromIntegral (end - start)) / (10^12)
+    --printf "%s %0.3f sec\n" s (diff :: Double)
+    printf "%s %f sec\n" s (diff :: Double)
+    return v

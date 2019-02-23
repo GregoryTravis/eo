@@ -1,4 +1,5 @@
 echo channel 1 note-on C2 127
+echo channel 1 note-on C#2 127
 sleep 0.5
 echo channel 1 note-on C2 127
 echo channel 1 note-on D2 127
