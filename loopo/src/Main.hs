@@ -71,8 +71,8 @@ gruu filename = do
   let stereoV = copyAndStereoize (SF.channels info) v
   return stereoV
 
-writeAudioAllAtOnce' :: Vector Float -> IO ()
-writeAudioAllAtOnce' v =
+writeAudioAllAtOnce :: Vector Float -> IO ()
+writeAudioAllAtOnce v =
   --let (fp, start, length) = SVB.toForeignPtr v
       --aFloat = (undefined :: Float)
    --in withForeignPtr fp (\ptr -> writeAudioAllAtOnce length (plusPtr ptr (start * 2 * (sizeOf aFloat))))
@@ -116,8 +116,8 @@ getActiveSamples loops active =
   where isActive i = S.member (i + lowKey) active
 
 -- mixBuffers resampled buffer newDownKeys
-mixBuffers' :: [Vector Float] -> Int -> S.Set Int -> Vector Float
-mixBuffers' loops curPos downKeys =
+mixBuffers :: [Vector Float] -> Int -> S.Set Int -> Vector Float
+mixBuffers loops curPos downKeys =
   let remaining = desiredLengthFrames - curPos
       toWrite = min remaining theBufferSize
       activeLoops = getActiveSamples loops downKeys
@@ -177,8 +177,8 @@ main = do hSetBuffering stdout NoBuffering
                 --if newDownKeys /= downKeys then msp newDownKeys else return ()
                 if newDownKeys /= downKeys then putStrLn (pressDiagram (length loopsV) newDownKeys) else return ()
                 --msp ("nDK", newDownKeys)
-                let buffer' = mixBuffers' loopsV curPos newDownKeys
-                writeAudioAllAtOnce' buffer'
+                let buffer = mixBuffers loopsV curPos newDownKeys
+                writeAudioAllAtOnce buffer
 
                 let newCurPos = if curPos + theBufferSize >= desiredLengthFrames then 0 else curPos + theBufferSize
                 --threadDelay 100000
