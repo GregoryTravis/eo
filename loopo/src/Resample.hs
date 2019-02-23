@@ -33,7 +33,7 @@ md5File filename = do
 resample src destLengthFrames = do
   srcLengthFrames <- getLength src
   hash <- md5File src
-  let dest = cacheDir ++ "/_" ++ (C8.unpack $ B16.encode hash) ++ "_" ++ (show destLengthFrames) ++ "_" ++ src
+  let dest = cacheDir ++ "/_" ++ (C8.unpack $ B16.encode hash) ++ "_" ++ (show destLengthFrames) ++ ".wav"
   exists <- doesFileExist dest
   if not exists
     then do let speedRatio = notTooSlow $ (fromIntegral srcLengthFrames) / (fromIntegral destLengthFrames)

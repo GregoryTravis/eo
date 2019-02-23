@@ -1,0 +1,4 @@
+#!/bin/bash
+D=~/proj/beetz
+ls $D/bazerk/loop*.wav $D/inyourear9/loop*.wav $D/passion/loop*.wav $D/rhab/*/loop*.wav $D/jbprofile/loop*.wav | \
+  perl -MList::Util -e 'print List::Util::shuffle <>'

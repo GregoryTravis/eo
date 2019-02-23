@@ -1,0 +1,2 @@
+#!/bin/bash
+receivemidi dev "US-122 MKII MIDI"
