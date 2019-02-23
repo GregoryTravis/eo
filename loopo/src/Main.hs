@@ -58,7 +58,7 @@ maybeLoop v =
   let (numCopies, 0) = divMod desiredLengthFrames (SV.length v)
    in SV.concat (replicate numCopies v)
 
-gruu :: String -> IO (Ptr Float, Int)
+gruu :: String -> IO (Vector Float, Int)
 gruu filename = do
   -- open the file that we want to know about
   --f <- SF.openFile "loop2.wav" SF.ReadMode SF.defaultInfo
@@ -87,7 +87,8 @@ gruu filename = do
 
   --assertM "huhh" (a == 0) ()
   stereo <- copyAndStereoize (SF.channels info) (SF.frames info) fp
-  return (stereo, b)
+  stereoV <- ptrToVector (desiredLengthFrames * 2) stereo
+  return (stereoV, b)
 
 ptrToVector length ptr = do
   fp <- newForeignPtr_ ptr
@@ -247,15 +248,15 @@ main = do hSetBuffering stdout NoBuffering
           resampled <- mapM resample args
           msp resampled
           --(loops, lengths) <- unzip $ mapM gruu resampled
-          x0 <- mapM gruu resampled :: IO [(Ptr Float, Int)]
-          let x1 = unzip x0 :: ([Ptr Float], [Int])
-          let (loops, lengths) = x1
+          x0 <- mapM gruu resampled :: IO [(Vector Float, Int)]
+          let x1 = unzip x0 :: ([Vector Float], [Int])
+          let (loopsV, lengths) = x1
           msp "whu"
           msp lengths
           msp $ map (desiredLengthFrames ==) lengths
           msp $ all (desiredLengthFrames ==) lengths
           massert $ all (desiredLengthFrames ==) lengths
-          loopsV <- mapM (ptrToVector (desiredLengthFrames * 2)) loops
+          --loopsV <- mapM (ptrToVector (desiredLengthFrames * 2)) loops
           --(p, totalSize) <- gruu
           --msp ("yeahh", p, totalSize)
           --withForeignPtr fp (writeAudio totalSize)
@@ -269,7 +270,7 @@ main = do hSetBuffering stdout NoBuffering
           let loop downKeys curPos = do
                 newDownKeys <- processEvents downKeys
                 --if newDownKeys /= downKeys then msp newDownKeys else return ()
-                if newDownKeys /= downKeys then putStrLn (pressDiagram (length loops) newDownKeys) else return ()
+                if newDownKeys /= downKeys then putStrLn (pressDiagram (length loopsV) newDownKeys) else return ()
                 --msp ("nDK", newDownKeys)
                 --mixBuffers loops buffer curPos newDownKeys
                 --time "old" $ mixBuffers loops buffer curPos newDownKeys
