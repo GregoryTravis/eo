@@ -35,21 +35,12 @@ theBufferSize = 64
 desiredLengthFrames = 44100 * 2
 lowKey = 36
 
-copyAndStereoize :: Int -> Int -> ForeignPtr Float -> IO (Ptr Float)
-copyAndStereoize 2 numFrames fptr =
-  -- Just copy
-  do dest <- (mallocArray (numFrames * 2)) :: IO (Ptr Float)
-     withForeignPtr fptr (\src -> copyArray src dest numFrames)
-     return dest
-copyAndStereoize 1 numFrames fptr =
-  -- Duplicate each sample
-  do dest <- (mallocArray (numFrames * 2)) :: IO (Ptr Float)
-     withForeignPtr fptr $ dupSamples dest
-     return dest
-  where dupSamples dest src = do mapM_ (copy src dest) [0..(numFrames-1)]
-        copy src dest offset = do sample <- peekElemOff src offset
-                                  pokeElemOff dest (offset*2) sample
-                                  pokeElemOff dest (offset*2 + 1) sample
+doubleIt [] = []
+doubleIt (x : xs) = x : x : (doubleIt xs)
+
+copyAndStereoize :: Storable a => Int -> Vector a -> Vector a
+copyAndStereoize 1 v = SV.pack (doubleIt (SV.unpack v))
+copyAndStereoize 2 v = v
 
 -- Concatenate enough copies of the vector to reach the standard length; must
 -- be an integral number of copies.
@@ -58,7 +49,7 @@ maybeLoop v =
   let (numCopies, 0) = divMod desiredLengthFrames (SV.length v)
    in SV.concat (replicate numCopies v)
 
-gruu :: String -> IO (Vector Float, Int)
+gruu :: String -> IO (Vector Float)
 gruu filename = do
   -- open the file that we want to know about
   --f <- SF.openFile "loop2.wav" SF.ReadMode SF.defaultInfo
@@ -72,9 +63,9 @@ gruu filename = do
   msp ("qqq before", SV.length v')
   let v = maybeLoop $ v'
   msp ("qqq after", SV.length v)
-  let (fp, a, b) = SVB.toForeignPtr v
-  msp (filename, fp, a, b)
-  putStrLn $ assert (a==0) (show a)
+  --let (fp, a, b) = SVB.toForeignPtr v
+  --msp (filename, fp, a, b)
+  --putStrLn $ assert (a==0) (show a)
 
   -- close the file
   --SF.hClose f
@@ -86,9 +77,8 @@ gruu filename = do
   putStrLn $ "frames:      " ++ (show $ SF.frames info)
 
   --assertM "huhh" (a == 0) ()
-  stereo <- copyAndStereoize (SF.channels info) (SF.frames info) fp
-  stereoV <- ptrToVector (desiredLengthFrames * 2) stereo
-  return (stereoV, b)
+  let stereoV = copyAndStereoize (SF.channels info) v
+  return stereoV
 
 ptrToVector length ptr = do
   fp <- newForeignPtr_ ptr
@@ -248,14 +238,13 @@ main = do hSetBuffering stdout NoBuffering
           resampled <- mapM resample args
           msp resampled
           --(loops, lengths) <- unzip $ mapM gruu resampled
-          x0 <- mapM gruu resampled :: IO [(Vector Float, Int)]
-          let x1 = unzip x0 :: ([Vector Float], [Int])
-          let (loopsV, lengths) = x1
+          loopsV <- mapM gruu resampled
+          let lengths = map SV.length loopsV
           msp "whu"
           msp lengths
-          msp $ map (desiredLengthFrames ==) lengths
-          msp $ all (desiredLengthFrames ==) lengths
-          massert $ all (desiredLengthFrames ==) lengths
+          msp $ map ((desiredLengthFrames * 2) ==) lengths
+          msp $ all ((desiredLengthFrames * 2) ==) lengths
+          massert $ all ((desiredLengthFrames * 2) ==) lengths
           --loopsV <- mapM (ptrToVector (desiredLengthFrames * 2)) loops
           --(p, totalSize) <- gruu
           --msp ("yeahh", p, totalSize)
