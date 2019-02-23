@@ -6,7 +6,7 @@
 loops=~/proj/beetz/jbprofile/loop1?.wav
 loops=loop?.wav
 loops="loop4?.wav loop5?.wav loop3?.wav"
-loops='loop2.wav loop3.wav'
+#loops='loop2.wav loop3.wav'
 #loops='loop3.wav loop2.wav'
 #loops='loop2.wav'
 echo $loops

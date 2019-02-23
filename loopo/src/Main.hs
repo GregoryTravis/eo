@@ -19,6 +19,7 @@ import System.Exit
 import System.IO
 import System.Process
 
+import Resample
 import Util
 
 foreign import ccall "init_audio" init_audio :: IO ()
@@ -100,26 +101,7 @@ mixBuffers loops curPos downKeys =
   where mixSamples :: [Vector Float] -> Int -> Float
         mixSamples loops i = sum $ map (\loop -> (SV.index loop ((curPos * 2) + i))) loops
 
-getLength filename = do
-  --(a, _, stderr') <- readProcessWithExitCode "/usr/local/bin/sox" [filename, "-n", "stat"] ""
-  --msp ("mspa", a)
-  --msp stderr'
-  (ExitSuccess, _, stderr) <- readProcessWithExitCode "/usr/local/bin/sox" [filename, "-n", "stat"] ""
-  let ws = words stderr
-  return $ assert (take 2 ws == ["Samples", "read:"])
-    ((read $ ws !! 2) :: Integer)
-
--- Double the speed ratio until it's >= 0.5
-notTooSlow x
-  | 0 < x && x < 0.5 = notTooSlow (x * 2)
-  | otherwise = x
-
-resample src = do
-  srcLengthFrames <- getLength src
-  let dest = "_" ++ src
-  let speedRatio = notTooSlow $ (fromIntegral srcLengthFrames) / (fromIntegral desiredLengthFrames)
-  callProcess "/usr/local/bin/sox" [src, dest, "speed", show speedRatio]
-  return dest
+resampleToStandard src = resample src desiredLengthFrames
 
 pressDiagram numSamples keys = "[" ++ map onOff [0..numSamples-1] ++ "]"
   where onOff i = if (S.member (i+lowKey) keys) then '#' else '.'
@@ -132,7 +114,7 @@ main = do hSetBuffering stdout NoBuffering
 
           init_audio
 
-          resampled <- mapM resample args
+          resampled <- mapM resampleToStandard args
           loopsV <- mapM gruu resampled
           let lengths = map SV.length loopsV
           massert $ all ((desiredLengthFrames * 2) ==) lengths

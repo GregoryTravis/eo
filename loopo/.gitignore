@@ -4,3 +4,4 @@ out
 misc
 dist
 *.wav
+loop_cache
