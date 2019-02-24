@@ -13,15 +13,15 @@ loops=loop?.wav
 loops="loop4?.wav loop5?.wav loop3?.wav"
 #loops='loop2.wav loop3.wav'
 #loops='loop3.wav loop2.wav'
-#loops='loop2.wav'
-loops="$D/bazerk/loop*.wav $D/inyourear9/loop*.wav $D/passion/loop*.wav"
-loops="$D/rhab/*/loop*.wav"
-loops=`random-loops`
-loops=`cat fo-loops`
+loops='loop2.wav'
+#loops="$D/bazerk/loop*.wav $D/inyourear9/loop*.wav $D/passion/loop*.wav"
+#loops="$D/rhab/*/loop*.wav"
+#loops=`random-loops`
+#loops=`cat fo-loops`
 #echo $loops
 
 src=read-midi
-src='. input'
+#src='. input'
 (stack build --library-profiling --executable-profiling --ghc-options "$optflags -rtsopts -Werror -ferror-spans -fprof-auto -fprof-cafs" && \
  $src | (stack exec -- loopo $loops +RTS -xc)) 2>&1 | tee out
 

@@ -80,7 +80,7 @@ processEvents :: S.Set Int -> IO (S.Set Int)
 processEvents downKeys = do
   ready <- hReady stdin
   if ready then do line <- getLine
-                   --msp line
+                   msp line
                    --let (n, isDown) = parseEvent line
                    let newDownKeys = case parseEvent line of Just (n, isDown) -> if isDown then S.insert n downKeys else S.delete n downKeys
                                                              Nothing -> downKeys
@@ -116,6 +116,7 @@ main = do hSetBuffering stdout NoBuffering
 
           --resampled <- mapM resampleToStandard args
           loops <- mapM gruu args
+          msp "loops loaded"
 
           let loop downKeys curPos = do
                 newDownKeys <- processEvents downKeys

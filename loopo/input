@@ -1,13 +1,17 @@
-echo channel 1 note-on C2 127
-echo channel 1 note-on C#2 127
+#!/bin/bash
+function send {
+  echo $*
+  sendmidi echo dev "IAC Driver To Loopo" $*
+}
+
+send channel 1 note-on C2 127
+send channel 1 note-on C#2 127
 sleep 0.5
-echo channel 1 note-on C2 127
-echo channel 1 note-on D2 127
-echo channel 1 note-on E2 127
-echo channel 1 note-on D2 127
+send channel 1 note-on C2 127
+send channel 1 note-on D2 127
+send channel 1 note-on E2 127
+send channel 1 note-on D2 127
 sleep 0.5
-echo channel 1 note-on C2 127
+send channel 1 note-on C2 127
 sleep 0.5
-echo channel 1 note-on D2 127
-sleep 0.5
-cat
+send channel 1 note-on D2 127
