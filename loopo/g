@@ -4,6 +4,9 @@
 
 D=~/proj/beetz
 
+optflags=-O0
+#optflags=-O2
+
 #(stack build && . input | (stack exec loopo loop*.wav)) 2>&1 | tee out
 loops=~/proj/beetz/jbprofile/loop1?.wav
 loops=loop?.wav
@@ -18,8 +21,8 @@ loops=`cat fo-loops`
 echo $loops
 
 src=read-midi
-#src='. input'
-(stack build --library-profiling --executable-profiling --ghc-options '-O0 -rtsopts -Werror -ferror-spans -fprof-auto -fprof-cafs' && \
+src='. input'
+(stack build --library-profiling --executable-profiling --ghc-options "$optflags -rtsopts -Werror -ferror-spans -fprof-auto -fprof-cafs" && \
  $src | (stack exec -- loopo $loops +RTS -xc)) 2>&1 | tee out
 
 #(stack build && receivemidi dev "US-122 MKII MIDI" | (stack exec loopo $loops)) 2>&1 | tee out

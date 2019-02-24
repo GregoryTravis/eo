@@ -30,11 +30,8 @@ theBufferSize = 64
 desiredLengthFrames = 44100 * 2
 lowKey = 36
 
-doubleIt [] = []
-doubleIt (x : xs) = x : x : (doubleIt xs)
-
 copyAndStereoize :: Storable a => Int -> Vector a -> Vector a
-copyAndStereoize 1 v = SV.pack (doubleIt (SV.unpack v))
+copyAndStereoize 1 v = SV.interleave [v, v]
 copyAndStereoize 2 v = v
 
 -- Concatenate enough copies of the vector to reach the standard length; must
@@ -48,7 +45,10 @@ gruu :: String -> IO (Vector Float)
 gruu filename = do
   (info, Just (buffer :: BV.Buffer Float)) <- SF.readFile filename
   msp info
-  return $ copyAndStereoize (SF.channels info) (maybeLoop (BV.fromBuffer buffer))
+  --return $ copyAndStereoize (SF.channels info) (maybeLoop (BV.fromBuffer buffer))
+  let v = copyAndStereoize (SF.channels info) (maybeLoop (BV.fromBuffer buffer))
+  massert ((SV.length v) == desiredLengthFrames * 2)
+  return v
 
 writeAudioAllAtOnce :: Vector Float -> IO ()
 writeAudioAllAtOnce v =
@@ -117,7 +117,9 @@ main = do hSetBuffering stdout NoBuffering
           resampled <- mapM resampleToStandard args
           loopsV <- mapM gruu resampled
           let lengths = map SV.length loopsV
-          massert $ all ((desiredLengthFrames * 2) ==) lengths
+          msp "before"
+          --time "blbl" $ massert $ all ((desiredLengthFrames * 2) ==) lengths
+          msp "afteafter"
 
           let loop downKeys curPos = do
                 newDownKeys <- processEvents downKeys
