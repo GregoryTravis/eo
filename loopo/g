@@ -18,7 +18,7 @@ loops="$D/bazerk/loop*.wav $D/inyourear9/loop*.wav $D/passion/loop*.wav"
 loops="$D/rhab/*/loop*.wav"
 loops=`random-loops`
 loops=`cat fo-loops`
-echo $loops
+#echo $loops
 
 src=read-midi
 src='. input'
