@@ -43,8 +43,9 @@ maybeLoop v =
 
 gruu :: String -> IO (Vector Float)
 gruu filename = do
-  (info, Just (buffer :: BV.Buffer Float)) <- SF.readFile filename
-  msp info
+  putStrLn $ "- " ++ filename
+  resampledFilename <- resampleToStandard filename
+  (info, Just (buffer :: BV.Buffer Float)) <- SF.readFile resampledFilename
   --return $ copyAndStereoize (SF.channels info) (maybeLoop (BV.fromBuffer buffer))
   let v = copyAndStereoize (SF.channels info) (maybeLoop (BV.fromBuffer buffer))
   massert ((SV.length v) == desiredLengthFrames * 2)
@@ -108,25 +109,20 @@ pressDiagram numSamples keys = "[" ++ map onOff [0..numSamples-1] ++ "]"
 
 main = do hSetBuffering stdout NoBuffering
           args <- getArgs
-          msp args
 
           let downKeys = S.empty
 
           init_audio
 
-          resampled <- mapM resampleToStandard args
-          loopsV <- mapM gruu resampled
-          let lengths = map SV.length loopsV
-          msp "before"
-          --time "blbl" $ massert $ all ((desiredLengthFrames * 2) ==) lengths
-          msp "afteafter"
+          --resampled <- mapM resampleToStandard args
+          loops <- mapM gruu args
 
           let loop downKeys curPos = do
                 newDownKeys <- processEvents downKeys
                 --if newDownKeys /= downKeys then msp newDownKeys else return ()
-                if newDownKeys /= downKeys then putStrLn (pressDiagram (length loopsV) newDownKeys) else return ()
+                if newDownKeys /= downKeys then putStrLn (pressDiagram (length loops) newDownKeys) else return ()
                 --msp ("nDK", newDownKeys)
-                let buffer = mixBuffers loopsV curPos newDownKeys
+                let buffer = mixBuffers loops curPos newDownKeys
                 writeAudioAllAtOnce buffer
 
                 let newCurPos = if curPos + theBufferSize >= desiredLengthFrames then 0 else curPos + theBufferSize

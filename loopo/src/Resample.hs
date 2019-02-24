@@ -38,6 +38,6 @@ resample src destLengthFrames = do
   if not exists
     then do let speedRatio = notTooSlow $ (fromIntegral srcLengthFrames) / (fromIntegral destLengthFrames)
             callProcess "/usr/local/bin/sox" [src, dest, "speed", show speedRatio]
-    else do msp ("cache hit", dest)
+    else do -- msp ("cache hit", dest)
             return ()
   return dest
