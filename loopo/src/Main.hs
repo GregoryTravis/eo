@@ -67,25 +67,23 @@ parsePitch [letter, octave] = ((atoi [octave] + 1) * 12) + fromJust (Map.lookup 
 parsePitch [letter, sharp, octave] = parsePitch [letter, octave] + 1
 
 parseEvent :: String -> Maybe (Int, Bool)
-parseEvent line =
-  case (words line) of
-    [channel, one, eventType, pitchS, velocityS] ->
-      assert (channel == "channel")
-        assert (one == "1")
-          assert (eventType == "note-on" || eventType == "note-off")
-            Just (parsePitch pitchS, eventType == "note-on")
-    _ -> Nothing
+parseEvent line = parseWords (words line)
+  where parseWords ["channel", _, eventType, pitchS, _]
+          | (eventType == "note-on" || eventType == "note-off") = Just (parsePitch pitchS, eventType == "note-on")
+          | otherwise = Nothing
+        parseWords _ = Nothing
 
-processEvents :: S.Set Int -> IO (S.Set Int)
-processEvents downKeys = do
+processEvents :: Bool -> S.Set Int -> IO (Bool, S.Set Int)
+processEvents isReset downKeys = do
   ready <- hReady stdin
   if ready then do line <- getLine
                    msp line
                    --let (n, isDown) = parseEvent line
-                   let newDownKeys = case parseEvent line of Just (n, isDown) -> if isDown then S.insert n downKeys else S.delete n downKeys
-                                                             Nothing -> downKeys
-                   processEvents newDownKeys
-           else return downKeys
+                   let (newIsReset, newDownKeys) = case parseEvent line of Just (28, True) -> (True, downKeys)
+                                                                           Just (n, isDown) -> (isReset, if isDown then S.insert n downKeys else S.delete n downKeys)
+                                                                           Nothing -> (isReset, downKeys)
+                   processEvents newIsReset newDownKeys
+           else return (isReset, downKeys)
 
 getActiveSamples :: [a] -> S.Set Int -> [a]
 getActiveSamples loops active =
@@ -119,14 +117,15 @@ main = do hSetBuffering stdout NoBuffering
           msp "loops loaded"
 
           let loop downKeys curPos = do
-                newDownKeys <- processEvents downKeys
+                (isReset, newDownKeys) <- processEvents False downKeys
                 --if newDownKeys /= downKeys then msp newDownKeys else return ()
                 if newDownKeys /= downKeys then putStrLn (pressDiagram (length loops) newDownKeys) else return ()
                 --msp ("nDK", newDownKeys)
-                let buffer = mixBuffers loops curPos newDownKeys
+                let curPos' = if isReset then 0 else curPos
+                let buffer = mixBuffers loops curPos' newDownKeys
                 writeAudioAllAtOnce buffer
 
-                let newCurPos = if curPos + theBufferSize >= desiredLengthFrames then 0 else curPos + theBufferSize
+                let newCurPos = if curPos' + theBufferSize >= desiredLengthFrames then 0 else curPos' + theBufferSize
                 --threadDelay 100000
                 loop newDownKeys newCurPos
 
