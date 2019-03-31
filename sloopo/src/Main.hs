@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Main where
 
 --import Data.Fixed (mod')
@@ -24,17 +25,18 @@ class Event a where
 
 -- Deterministic stream: returns an event and the continuation stream
 class DStream a e | a -> e where
-  next :: a -> Time -> (e, a)
+  next :: a -> Time -> (Event e, a)
 
 data Cyc = Cyc Int [Int]
   deriving Show
 
-instance DStream Cyc (Event Int) where
-  next c@(Cyc beatDur values) now = (Event nextValue now, c)
+instance DStream Cyc Int where
+  next c@(Cyc beatDur values) now = (Event nextValue eTime, c)
     where nextValue = values !! (mod ((now `div` beatDur) + 1) (length values))
+          eTime = (((now `div` beatDur) + 1) * beatDur)
 
 class NStream a e | a -> e where
-  nnext :: a -> Time -> Duration -> IO (Maybe (e, a))
+  nnext :: a -> Time -> Duration -> IO (Maybe (Event e, a))
 
 data OnOff = On | Off
   deriving Show
@@ -47,7 +49,7 @@ parse line = Midi 60 On
 data MidiStdin = MidiStdin Time
   deriving Show
 
-instance NStream MidiStdin (Event Midi) where
+instance NStream MidiStdin Midi where
   nnext m@(MidiStdin startTime) _ timeout =
     do b <- hWaitForInput stdin timeout
        now <- getPOSIXTime
@@ -55,20 +57,36 @@ instance NStream MidiStdin (Event Midi) where
        if b
          then do line <- hGetLine stdin
                  --msp ("line", line)
+                 msp ("huh", now, startTime)
                  return $ Just (Event (parse line) (truncate now - startTime), m)
          else return Nothing
 
+--data NDStream n ne d de = NDStream (NStream n ne) (DStream d de)
+data NDStream n d = NDStream n d
+  deriving Show
+
+--instance (NStream n ne, DStream d de) => NStream (NDStream n ne d de) (Event (Either ne de)) where
+instance (Show n, Show d, Show ne, Show de, NStream n ne, DStream d de) => NStream (NDStream n d) (Either ne de) where
+  nnext (NDStream n d) now timeout =
+    do let q@((Event dEvent dTime), nextDStream) = next d now
+       msp ("q", q)
+       x <- nnext n now (dTime - now)
+       msp ("x", x, now)
+       case x of Nothing -> return $ Just (Event (Right dEvent) dTime, NDStream n nextDStream)
+                 Just (Event nEvent nTime, nextNStream) -> return $ Just (Event (Left nEvent) nTime, NDStream nextNStream d)
+
 main = do
-  let cs = Cyc 500 [10, 11, 12, 13]
-  msp $ next cs 250
-  msp $ next cs 750
-  msp "hi"
+  let cs = Cyc 2000 [10, 11, 12, 13]
+  --msp $ next cs 250
+  --msp $ next cs 750
+  --msp "hi"
   now <- getPOSIXTime
   let ms = MidiStdin (truncate now)
-  e <- nnext ms (truncate now + 100) 100
+  let bs = NDStream ms cs
+  e <- nnext bs 100 10000
   msp e
-  e2 <- nnext ms (truncate now + 100) 600
-  msp e2
+  --e2 <- nnext ms (truncate now + 100) 600
+  --msp e2
   return ()
 
 _main = do

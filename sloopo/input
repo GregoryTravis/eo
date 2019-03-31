@@ -4,7 +4,7 @@ function send {
   #sendmidi echo dev "IAC Driver Bus 1" $*
 }
 
-sleep 0.5
+sleep 1.5
 send channel 1 note-on C2 127
 exit
 send channel 1 note-on C#2 127
