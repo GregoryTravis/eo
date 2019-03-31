@@ -4,6 +4,7 @@
 module Main where
 
 --import Data.Fixed (mod')
+import Data.Time.Clock.POSIX (getPOSIXTime)
 import System.IO
 
 import Util
@@ -32,11 +33,42 @@ instance DStream Cyc (Event Int) where
   next c@(Cyc beatDur values) now = (Event nextValue now, c)
     where nextValue = values !! (mod ((now `div` beatDur) + 1) (length values))
 
+class NStream a e | a -> e where
+  nnext :: a -> Time -> Duration -> IO (Maybe (e, a))
+
+data OnOff = On | Off
+  deriving Show
+data Midi = Midi Int OnOff
+  deriving Show
+
+parse :: String -> Midi
+parse line = Midi 60 On
+
+data MidiStdin = MidiStdin Time
+  deriving Show
+
+instance NStream MidiStdin (Event Midi) where
+  nnext m@(MidiStdin startTime) _ timeout =
+    do b <- hWaitForInput stdin timeout
+       now <- getPOSIXTime
+       --msp b
+       if b
+         then do line <- hGetLine stdin
+                 --msp ("line", line)
+                 return $ Just (Event (parse line) (truncate now - startTime), m)
+         else return Nothing
+
 main = do
   let cs = Cyc 500 [10, 11, 12, 13]
   msp $ next cs 250
   msp $ next cs 750
   msp "hi"
+  now <- getPOSIXTime
+  let ms = MidiStdin (truncate now)
+  e <- nnext ms (truncate now + 100) 100
+  msp e
+  e2 <- nnext ms (truncate now + 100) 600
+  msp e2
   return ()
 
 _main = do
