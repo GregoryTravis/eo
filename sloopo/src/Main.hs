@@ -1,5 +1,6 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 module Main where
 
 --import Data.Fixed (mod')
@@ -21,7 +22,7 @@ class Event a where
 -}
 
 -- Deterministic stream: returns an event and the continuation stream
-class DStream a e where
+class DStream a e | a -> e where
   next :: a -> Time -> (e, a)
 
 data Cyc = Cyc Int [Int]
@@ -33,8 +34,8 @@ instance DStream Cyc (Event Int) where
 
 main = do
   let cs = Cyc 500 [10, 11, 12, 13]
-  msp $ (next cs 250 :: (Event Int, Cyc))
-  msp $ (next cs 750 :: (Event Int, Cyc))
+  msp $ next cs 250
+  msp $ next cs 750
   msp "hi"
   return ()
 
