@@ -1,0 +1,17 @@
+#!/bin/bash
+function send {
+  echo $*
+  sendmidi echo dev "IAC Driver Bus 1" $*
+}
+
+send channel 1 note-on C2 127
+send channel 1 note-on C#2 127
+sleep 0.5
+send channel 1 note-on C2 127
+send channel 1 note-on D2 127
+send channel 1 note-on E2 127
+send channel 1 note-on D2 127
+sleep 0.5
+send channel 1 note-on C2 127
+sleep 0.5
+send channel 1 note-on D2 127

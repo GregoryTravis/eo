@@ -1,0 +1,3 @@
+#!/bin/bash
+# receivemidi dev "US-122 MKII MIDI"
+receivemidi dev "IAC Driver Bus 1"

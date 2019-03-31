@@ -1,0 +1,2 @@
+(stack build --library-profiling --executable-profiling --ghc-options "$optflags -rtsopts -Werror -ferror-spans -fprof-auto -fprof-cafs" && \
+  stack exec -- sloopo +RTS -xc) 2>&1 | tee out
